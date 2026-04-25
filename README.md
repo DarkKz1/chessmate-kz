@@ -1,36 +1,194 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ChessMate — You vs You
 
-## Getting Started
+**Live:** https://dr-chessmate-kz.vercel.app
+**Сабмит:** nFactorial Incubator 2026, 2-й этап (Chess)
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Что это
+
+Шахматы, которые **учат тебя из твоих ошибок**. Не просто доска с ИИ — продукт-loop:
+
+1. Открыл — играешь против ИИ, который **подстраивается под твой уровень**.
+2. Партия закончилась — приложение находит **один конкретный ход**, который решил исход, и показывает его. Не «accuracy 87%», не «3 blunders». Один ход. С объяснением.
+3. На следующий день — этот ход возвращается как **утренняя задача** на главной. Решил — продолжаешь играть.
+
+Каждая партия делает тебя сильнее в одном конкретном месте. Это и есть весь продукт.
+
+## Для кого
+
+Для любого, кто играет в шахматы и **не понимает почему он проигрывает**. Stockfish скажет «−2.3», chess.com покажет accuracy. ChessMate берёт тебя за руку: вот ход, вот объяснение, вот завтра ты решишь его сам.
+
+## Чем отличается от chess.com / lichess
+
+| | chess.com | lichess | ChessMate |
+|---|---|---|---|
+| Сложность | 30 уровней | 8 уровней | **адаптивная** — растёт под твою игру |
+| Анализ партии | accuracy + список blunder'ов | Stockfish eval | **один ход + урок** |
+| Завтра | надо вспомнить | надо вспомнить | **возвращает позицию из вчерашней ошибки** |
+| Регистрация | нужна | нужна | **не нужна** |
+| Меню | бесконечное | бесконечное | **одна кнопка** |
+
+## Как это работает (под капотом)
+
+### 1. Адаптивный ИИ
+
+`Rating` (0–100) хранится в `localStorage`. Маппится на глубину поиска минимакса:
+
+| Rating | Depth | Сложность |
+|---|---|---|
+| 0–14 | 1 | новичок |
+| 15–34 | 2 | базовый |
+| 35–59 | 3 | средний |
+| 60–81 | 4 | сильный |
+| 82+ | 5 | эксперт |
+
+После каждой партии rating сдвигается:
+- результат партии: ±1.2
+- средняя точность ходов: ±2
+
+5–10 партий = переход на следующий уровень.
+
+### 2. Минимакс с alpha-beta
+
+Своя реализация на TypeScript (~150 LOC), работает в Web Worker — UI не виснет:
+
+- Сортировка ходов перед поиском (взятия первыми) → дерево сокращается в 5–10×
+- Piece-Square Tables: пешки в центре +20, кони на краю −50, рокированный король +20
+- Стандартные значения: пешка 100, конь 320, слон 330, ладья 500, ферзь 900
+
+Депт 4 = 200K–1M позиций за 0.5–2 секунды на современном CPU.
+
+### 3. Анализатор партии
+
+После окончания партии шлём PGN в worker. Для каждого хода игрока:
+1. Считаем лучший ход на глубине 3
+2. Сравниваем с тем, что игрок сыграл
+3. `cpLoss = (eval лучшего) − (eval сыгранного)` в centipawns
+
+Если `cpLoss > 100` — это blunder. Сортируем все blunder'ы по `cpLoss`, **первый = главный ход партии**.
+
+### 4. Категоризация без LLM
+
+Murat Abdrakhmanov: «LLM wrappers don't work anymore». Поэтому классификация — детерминированные правила:
+
+- best оканчивается на `#`, played нет → `missed-mate`
+- `cpLoss > 400` → `lost-material`
+- `cpLoss > 200` + лучший ход берёт фигуру → `missed-tactic`
+- `cpLoss > 200` без взятия → `hanging-piece`
+- иначе → `positional`
+
+Каждой категории — короткий шаблон-урок: «Можно было поставить мат: Qf7#», «Ты подставил коня. Сильнее Bxe5».
+
+### 5. Карта слабостей (proprietary loop)
+
+Каждый blunder инкрементит счётчик в своей категории:
+
+```ts
+weaknesses: {
+  "hanging-piece": 4,
+  "missed-tactic": 7,    // ← здесь твоя слабость
+  "missed-mate": 1,
+  ...
+}
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Это и есть **proprietary data** — она строится только в нашем приложении и со временем становится более ценной для тебя. Конкурент не реплицирует.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+В следующей итерации ИИ будет читать эту карту и **намеренно создавать позиции**, провоцирующие твою худшую категорию. Это превращает игру против ИИ в персональный тренинг.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 6. Ежедневный loop
 
-## Learn More
+```
+Партия закончилась → blunder сохранён в localStorage с resolved: false
+Завтра открыл / → первый unresolved blunder показывается как «Утренняя задача»
+Кликнул → модалка с позицией, делаешь ход
+Если правильно → markBlunderResolved() → streak +1
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Стек
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Next.js 16** (App Router, Turbopack)
+- **TypeScript** (strict)
+- **Tailwind CSS 4** (CSS-vars палитра, dark mode по `class`)
+- **chess.js 1.4** — правила, FEN/PGN
+- **react-chessboard 5.10** — доска
+- **next-themes** — переключатель тем
+- **Web Worker** — минимакс не блокирует UI
+- **Vercel** — статический деплой, 0 backend
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Бекенда нет. Всё в браузере. **0 инфры — 0 расходов — работает offline.**
 
-## Deploy on Vercel
+## Дизайн-философия
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Применил два фреймворка:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Apple / Стив Джобс — 7 заповедей
+1. **Simplicity** — открыл и играешь. Никакого онбординга, выбора режима, цвета фигур.
+2. **Say no to 1000 things** — отрезано всё, что не в core loop'е. (Была версия с школами Казахстана / этно-фигурами / Pro подпиской / мультиплеером — выкинул всё за один вечер. См. git log.)
+3. **Detail** — Piece-Square Tables, классификация blunder'ов, шаблонные уроки на родном языке.
+4. **Innovation > research** — chess.com показывает accuracy. Я показываю **один ход** и **завтра он вернётся**. Этого нет нигде.
+5. **UX-first** — стартовал с экрана пользователя, не с фичи.
+
+### Murat Abdrakhmanov (MA7 Ventures) — 4 источника moat'а
+1. **Proprietary data** — карта слабостей пользователя растёт с каждой партией.
+2. **Distribution** — TBD после nFactorial.
+3. **Domain expertise** — лично играю в шахматы, знаю что бесит.
+4. **Execution velocity** — от концепта до live за 2 дня.
+
+И **3 фазы стартапов** (тоже Murat):
+- Phase 1 (copy-paste) — это chess.com клон. Мёртвый путь.
+- Phase 2 (нишевая дифференциация) — был соблазн прикрутить «школьную лигу Казахстана». Выкинул как AI slop.
+- **Phase 3 (AI-native)** — ИИ не «прикручен», он ядро. Без анализатора + адаптивной сложности продукта нет.
+
+## Запуск локально
+
+```bash
+npm install
+npm run dev      # http://localhost:3000
+```
+
+```bash
+npm run build && npm run start    # production
+```
+
+## Файловая структура
+
+```
+src/
+  app/
+    page.tsx           ← лендинг
+    play/page.tsx      ← главная страница игры
+    layout.tsx         ← root layout, шрифты, тема
+    globals.css        ← палитра + утилиты
+  components/
+    chess-board.tsx    ← обёртка react-chessboard с подсветкой
+    landing-hero.tsx   ← герой + showcase board
+    post-game-card.tsx ← модалка анализа партии
+    theme-provider.tsx
+    theme-toggle.tsx
+  lib/
+    utils.ts           ← cn() helper
+    chess/
+      use-chess-game.ts    ← хук-обёртка над chess.js
+      use-engine.ts        ← общается с worker
+      engine.worker.ts     ← Web Worker
+      simple-engine.ts     ← минимакс с alpha-beta
+      evaluation.ts        ← evaluate() + PST
+      blunder-detector.ts  ← analyseGame() + классификация
+      player-store.ts      ← localStorage state + rating math
+```
+
+## Roadmap (после nFactorial)
+
+- ИИ читает карту слабостей и провоцирует твои худшие категории
+- Звуки ходов и хаптика на мобиле (Apple #4 detail)
+- Sharing: «я решил blunder #12, попробуй»
+- Supabase для cross-device — но **только когда D7 retention > 20%**
+- Импорт партии из chess.com / lichess для разбора
+
+## Об авторе
+
+Дияр Райымжан, 17 лет, Astana Hub. Solo founder [ENTprep](https://entprep.kz) (10K+ юзеров). Это вечерний проект для nFactorial Incubator 2026.
+
+Связь: raimzhan1907@gmail.com

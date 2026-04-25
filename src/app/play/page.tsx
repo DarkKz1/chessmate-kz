@@ -1,94 +1,348 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import type { Square } from "chess.js";
 import {
-  Bot,
-  Users,
-  Link2,
-  ArrowRight,
+  ArrowLeft,
+  Loader2,
+  RotateCcw,
+  Flag,
   Sparkles,
 } from "lucide-react";
+import { ChessBoard } from "@/components/chess-board";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { useChessGame } from "@/lib/chess/use-chess-game";
+import { useEngine } from "@/lib/chess/use-engine";
+import { PostGameCard } from "@/components/post-game-card";
+import {
+  loadPlayer,
+  savePlayer,
+  ratingToDepth,
+  ratingDeltaForMove,
+  ratingDeltaForResult,
+  clampRating,
+  type PlayerState,
+  type Blunder,
+} from "@/lib/chess/player-store";
 
-export const metadata = {
-  title: "Играть · ChessMate KZ",
-};
+type GameResult = "win" | "loss" | "draw";
 
-const modes = [
-  {
-    href: "/play/ai",
-    icon: Bot,
-    title: "Против ИИ",
-    desc: "Stockfish 4 уровней — от новичка до мастера. Тренируйся в любое время.",
-    accent: "primary",
-    cta: "Начать тренировку",
-  },
-  {
-    href: "/play/local",
-    icon: Users,
-    title: "Два игрока",
-    desc: "Один экран, два игрока. Передавайте телефон друг другу.",
-    accent: "steppe",
-    cta: "Сыграть локально",
-  },
-  {
-    href: "/play/m",
-    icon: Link2,
-    title: "Игра по ссылке",
-    desc: "Создай комнату и кинь ссылку другу. Реалтайм через WebSocket.",
-    accent: "accent",
-    cta: "Создать комнату",
-    badge: "Beta",
-  },
-];
+export default function PlayPage() {
+  const game = useChessGame();
+  const { bestMove, analyse } = useEngine();
+  const [player, setPlayer] = useState<PlayerState | null>(null);
+  const [thinking, setThinking] = useState(false);
+  const [analysing, setAnalysing] = useState(false);
+  const [worstBlunder, setWorstBlunder] = useState<Blunder | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [resultBanner, setResultBanner] = useState<GameResult | null>(null);
+  const playerColorRef = useRef<"w" | "b">("w");
 
-export default function PlayHub() {
+  // Hydrate player state on mount
+  useEffect(() => {
+    setPlayer(loadPlayer());
+  }, []);
+
+  const finished = game.status !== "playing";
+  const playerColor = playerColorRef.current;
+  const depth = useMemo(
+    () => (player ? ratingToDepth(player.rating) : 2),
+    [player],
+  );
+
+  const lastMove =
+    game.history.length > 0
+      ? {
+          from: game.history[game.history.length - 1].from as Square,
+          to: game.history[game.history.length - 1].to as Square,
+        }
+      : null;
+
+  // AI move loop
+  useEffect(() => {
+    if (!player) return;
+    if (game.status !== "playing") return;
+    if (game.turn === playerColor) return;
+
+    let cancelled = false;
+    setThinking(true);
+    const timer = setTimeout(async () => {
+      const aiMove = await bestMove(game.fen, depth);
+      if (cancelled || !aiMove) {
+        setThinking(false);
+        return;
+      }
+      game.tryMove({
+        from: aiMove.from as Square,
+        to: aiMove.to as Square,
+        promotion: (aiMove.promotion as "q" | "r" | "b" | "n") ?? "q",
+      });
+      setThinking(false);
+    }, 280);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [game, game.fen, game.turn, game.status, bestMove, depth, player, playerColor]);
+
+  // End-of-game analysis + rating update
+  useEffect(() => {
+    if (!finished || !player) return;
+    if (worstBlunder !== null || analysing) return;
+
+    let cancelled = false;
+    setAnalysing(true);
+
+    const result: GameResult =
+      game.winner == null
+        ? "draw"
+        : game.winner === playerColor
+          ? "win"
+          : "loss";
+    setResultBanner(result);
+
+    (async () => {
+      const analysis = await analyse(game.pgn, playerColor, 3);
+      if (cancelled || !analysis) {
+        setAnalysing(false);
+        return;
+      }
+
+      // Compute new rating: result delta + average move-quality delta
+      const moveDelta =
+        analysis.moveCount > 0
+          ? ratingDeltaForMove(analysis.totalCpLoss / analysis.moveCount) *
+            Math.min(analysis.moveCount, 30) /
+            6
+          : 0;
+
+      const next: PlayerState = {
+        ...player,
+        rating: clampRating(
+          player.rating + ratingDeltaForResult(result) + moveDelta,
+        ),
+        games: player.games + 1,
+        wins: player.wins + (result === "win" ? 1 : 0),
+        draws: player.draws + (result === "draw" ? 1 : 0),
+        losses: player.losses + (result === "loss" ? 1 : 0),
+        blunders: analysis.worstBlunder
+          ? [analysis.worstBlunder, ...player.blunders].slice(0, 30)
+          : player.blunders,
+        weaknesses: analysis.worstBlunder
+          ? {
+              ...player.weaknesses,
+              [analysis.worstBlunder.category]:
+                player.weaknesses[analysis.worstBlunder.category] + 1,
+            }
+          : player.weaknesses,
+      };
+      savePlayer(next);
+      setPlayer(next);
+      setWorstBlunder(analysis.worstBlunder);
+      setAccuracy(analysis.accuracy);
+      setAnalysing(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [finished, player, game.pgn, game.winner, analyse, worstBlunder, analysing, playerColor]);
+
+  const handleNewGame = useCallback(() => {
+    // Alternate side each game so player learns both colors
+    playerColorRef.current = playerColorRef.current === "w" ? "b" : "w";
+    game.reset();
+    setWorstBlunder(null);
+    setAccuracy(null);
+    setResultBanner(null);
+  }, [game]);
+
+  const handleResign = useCallback(() => {
+    if (!confirm("Сдаться? Партия завершится поражением.")) return;
+    // Simulate loss by playing king move that immediately ends... we just
+    // mark it as a loss without updating rating or blunder analysis since the
+    // player abandoned the position.
+    game.reset();
+  }, [game]);
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12 md:px-8 md:py-20">
-      <div className="mb-12 max-w-2xl">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-accent-foreground">
-          <Sparkles className="size-3.5 text-accent" />
-          Выбери режим
+    <div className="flex min-h-dvh flex-col">
+      <header className="flex items-center justify-between border-b border-border/40 px-4 py-3 md:px-8 md:py-4">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-sm font-bold text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" />
+          ChessMate
+        </Link>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="font-mono">
+            {player ? `Ур. ${ratingToDepth(player.rating)}` : "—"}
+          </span>
+          <span aria-hidden>·</span>
+          <span className="font-mono">
+            {player ? `${player.wins}/${player.draws}/${player.losses}` : "0/0/0"}
+          </span>
+          <ThemeToggle />
         </div>
-        <h1 className="font-display text-4xl font-bold leading-tight md:text-6xl">
-          Как сегодня{" "}
-          <span className="text-primary">сыграем?</span>
-        </h1>
-        <p className="mt-4 text-lg text-muted-foreground">
-          Можно прямо сейчас — без регистрации. История партий и AI-разбор
-          доступны после входа.
-        </p>
-      </div>
+      </header>
 
-      <div className="grid gap-5 md:grid-cols-3">
-        {modes.map((mode) => (
-          <Link
-            key={mode.href}
-            href={mode.href}
-            className="group relative flex flex-col gap-6 overflow-hidden rounded-3xl border border-border bg-card p-7 transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl"
-          >
-            <div className="absolute -right-12 -top-12 size-40 rounded-full bg-primary/5 blur-3xl transition-opacity group-hover:opacity-100" />
+      <main className="mx-auto grid w-full max-w-6xl flex-1 gap-6 px-4 py-6 md:grid-cols-[1fr_320px] md:px-8 md:py-10">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
+                {finished ? "Партия окончена" : thinking ? "ИИ думает…" : game.turn === playerColor ? "Твой ход" : "Ход ИИ"}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {finished
+                  ? "Сейчас покажу один ход, который решил партию"
+                  : "Сложность подстраивается под тебя в реальном времени"}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleResign}
+                disabled={finished}
+                title="Сдаться"
+                aria-label="Сдаться"
+                className="flex size-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+              >
+                <Flag className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleNewGame}
+                title="Новая партия"
+                aria-label="Новая партия"
+                className="flex size-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <RotateCcw className="size-4" />
+              </button>
+            </div>
+          </div>
 
-            <div className="relative flex items-start justify-between">
-              <div className="flex size-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/5 text-primary">
-                <mode.icon className="size-7" strokeWidth={2} />
+          <div className="aspect-square w-full max-w-[560px] mx-auto md:mx-0">
+            <ChessBoard
+              fen={game.fen}
+              orientation={playerColor === "w" ? "white" : "black"}
+              allowMoves={!finished && game.turn === playerColor && !thinking}
+              inCheck={game.inCheck}
+              lastMove={lastMove}
+              legalMovesFor={(sq) => game.legalMoves(sq)}
+              onAttemptMove={(from, to) =>
+                Boolean(game.tryMove({ from, to }))
+              }
+            />
+          </div>
+
+          {resultBanner && analysing && (
+            <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground animate-fade-up">
+              <Loader2 className="size-4 animate-spin" />
+              ИИ ищет ход, который решил партию…
+            </div>
+          )}
+        </div>
+
+        <aside className="flex flex-col gap-4">
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <div className="flex items-center justify-between border-b border-border/60 pb-2 text-xs uppercase tracking-wider text-muted-foreground">
+              <span className="font-bold">Партия</span>
+              <span className="font-mono">{game.history.length} ходов</span>
+            </div>
+            <MoveList history={game.history} />
+          </div>
+
+          {player && player.games > 0 && (
+            <div className="rounded-2xl border border-border bg-card p-4">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                Твой прогресс
               </div>
-              {mode.badge && (
-                <span className="rounded-full bg-accent/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-accent-foreground">
-                  {mode.badge}
-                </span>
-              )}
+              <div className="mt-2 flex items-baseline gap-2">
+                <div className="font-display text-3xl font-bold">
+                  {Math.round(player.rating)}
+                </div>
+                <div className="text-xs text-muted-foreground">из 100</div>
+              </div>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full bg-foreground transition-all"
+                  style={{ width: `${player.rating}%` }}
+                />
+              </div>
+              <div className="mt-3 flex items-center justify-between font-mono text-xs text-muted-foreground">
+                <span>{player.games} партий</span>
+                <span>уровень ИИ {ratingToDepth(player.rating)}</span>
+              </div>
             </div>
+          )}
+        </aside>
+      </main>
 
-            <div className="relative">
-              <h3 className="font-display text-2xl font-bold">{mode.title}</h3>
-              <p className="mt-2 text-muted-foreground">{mode.desc}</p>
-            </div>
+      {finished && worstBlunder && (
+        <PostGameCard
+          result={resultBanner ?? "draw"}
+          accuracy={accuracy}
+          blunder={worstBlunder}
+          onReplay={handleNewGame}
+          onClose={() => setWorstBlunder(null)}
+        />
+      )}
 
-            <div className="relative flex items-center gap-1.5 pt-2 text-sm font-bold text-primary">
-              {mode.cta}
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+      {finished && !worstBlunder && !analysing && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-4 backdrop-blur-sm md:items-center">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-center">
+            <div className="font-display text-2xl font-bold">
+              {resultBanner === "win" ? "Победа" : resultBanner === "loss" ? "Поражение" : "Ничья"}
             </div>
-          </Link>
-        ))}
-      </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              На этот раз без явных промахов. Сыграй ещё.
+            </p>
+            <button
+              type="button"
+              onClick={handleNewGame}
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-bold text-background transition-transform hover:-translate-y-0.5"
+            >
+              <Sparkles className="size-4" />
+              Новая партия
+            </button>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function MoveList({ history }: { history: { san: string }[] }) {
+  if (history.length === 0) {
+    return (
+      <div className="px-1 py-6 text-center text-sm text-muted-foreground">
+        Сделай первый ход
+      </div>
+    );
+  }
+  const rows: { num: number; w?: string; b?: string }[] = [];
+  for (let i = 0; i < history.length; i += 2) {
+    rows.push({
+      num: i / 2 + 1,
+      w: history[i]?.san,
+      b: history[i + 1]?.san,
+    });
+  }
+  return (
+    <ol className="mt-2 max-h-64 space-y-0.5 overflow-y-auto">
+      {rows.map((row) => (
+        <li
+          key={row.num}
+          className="grid grid-cols-[2rem_1fr_1fr] items-center gap-2 rounded-md px-1 py-1 font-mono text-xs"
+        >
+          <span className="text-muted-foreground">{row.num}.</span>
+          <span className="font-semibold">{row.w ?? ""}</span>
+          <span className="font-semibold">{row.b ?? ""}</span>
+        </li>
+      ))}
+    </ol>
   );
 }

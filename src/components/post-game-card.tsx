@@ -34,6 +34,7 @@ export function PostGameCard({
   onClose,
   initialStage = "reveal",
   replayLabel = "Сыграть ещё",
+  isDemo = false,
 }: {
   result: "win" | "loss" | "draw";
   accuracy: number | null;
@@ -42,6 +43,7 @@ export function PostGameCard({
   onClose: () => void;
   initialStage?: "reveal" | "puzzle" | "solved";
   replayLabel?: string;
+  isDemo?: boolean;
 }) {
   const [stage, setStage] = useState<"reveal" | "puzzle" | "solved">(initialStage);
   const puzzleGame = useChessGame(blunder.fen);
@@ -101,12 +103,20 @@ export function PostGameCard({
         </button>
 
         <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            {RESULT_LABEL[result]}
-            {accuracy !== null && (
-              <span className="ml-2 font-mono">
-                · точность {Math.round(accuracy)}%
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+            {isDemo ? (
+              <span className="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 font-mono text-[10px] font-bold text-accent">
+                Пример
               </span>
+            ) : (
+              <>
+                <span>{RESULT_LABEL[result]}</span>
+                {accuracy !== null && (
+                  <span className="font-mono">
+                    · точность {Math.round(accuracy)}%
+                  </span>
+                )}
+              </>
             )}
           </div>
           <h2 className="mt-1 font-display text-3xl font-bold leading-tight md:text-4xl">

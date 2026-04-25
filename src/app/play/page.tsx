@@ -344,6 +344,7 @@ function PlayPageInner() {
           result="loss"
           accuracy={84}
           blunder={DEMO_MATE_BLUNDER}
+          isDemo
           replayLabel="Сыграть свою партию"
           onClose={() => {
             setDemoOpen(false);

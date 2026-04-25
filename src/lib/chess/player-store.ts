@@ -119,3 +119,32 @@ export function clampRating(r: number): number {
 export function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
+
+// Mark a specific blunder as resolved by FEN match. Increments daily streak
+// if the user solved the first puzzle of the day. Returns the new state.
+export function markBlunderResolved(fen: string): PlayerState {
+  const state = loadPlayer();
+  const today = todayKey();
+  const next: PlayerState = {
+    ...state,
+    blunders: state.blunders.map((b) =>
+      b.fen === fen ? { ...b, resolved: true } : b,
+    ),
+  };
+  if (state.lastSolvedDay !== today) {
+    next.streak = state.lastSolvedDay
+      ? isYesterday(state.lastSolvedDay, today)
+        ? state.streak + 1
+        : 1
+      : 1;
+    next.lastSolvedDay = today;
+  }
+  savePlayer(next);
+  return next;
+}
+
+function isYesterday(prev: string, today: string): boolean {
+  const a = new Date(prev);
+  const b = new Date(today);
+  return (b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24) <= 1.5;
+}

@@ -5,7 +5,10 @@ import type { Square } from "chess.js";
 import { Sparkles, X } from "lucide-react";
 import { ChessBoard } from "./chess-board";
 import { useChessGame } from "@/lib/chess/use-chess-game";
-import type { Blunder } from "@/lib/chess/player-store";
+import {
+  markBlunderResolved,
+  type Blunder,
+} from "@/lib/chess/player-store";
 
 const RESULT_LABEL: Record<"win" | "loss" | "draw", string> = {
   win: "Победа",
@@ -28,14 +31,18 @@ export function PostGameCard({
   blunder,
   onReplay,
   onClose,
+  initialStage = "reveal",
+  replayLabel = "Сыграть ещё",
 }: {
   result: "win" | "loss" | "draw";
   accuracy: number | null;
   blunder: Blunder;
   onReplay: () => void;
   onClose: () => void;
+  initialStage?: "reveal" | "puzzle" | "solved";
+  replayLabel?: string;
 }) {
-  const [stage, setStage] = useState<"reveal" | "puzzle" | "solved">("reveal");
+  const [stage, setStage] = useState<"reveal" | "puzzle" | "solved">(initialStage);
   const puzzleGame = useChessGame(blunder.fen);
 
   return (
@@ -85,6 +92,7 @@ export function PostGameCard({
                 const move = puzzleGame.tryMove({ from, to });
                 if (!move) return false;
                 if (move.san === blunder.best) {
+                  markBlunderResolved(blunder.fen);
                   setStage("solved");
                   return true;
                 }
@@ -154,7 +162,7 @@ export function PostGameCard({
             className="inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-sm font-bold text-background transition-transform hover:-translate-y-0.5"
           >
             <Sparkles className="size-4" />
-            Сыграть ещё
+            {replayLabel}
           </button>
         </div>
       </div>

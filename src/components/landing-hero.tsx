@@ -76,13 +76,22 @@ export function LandingHero() {
             ИИ подстраивается под твой уровень. После партии — один точный
             ход, который решил всё. Завтра он вернётся как задача.
           </p>
-          <Link
-            href="/play"
-            className="group mt-2 inline-flex items-center gap-2 rounded-full bg-foreground px-7 py-3.5 text-base font-semibold text-background shadow-xl shadow-foreground/15 transition-transform hover:-translate-y-0.5"
-          >
-            {player && player.games > 0 ? "Продолжить" : "Играть"}
-            <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
-          </Link>
+          <div className="mt-2 flex flex-col items-center gap-2 sm:flex-row sm:gap-3">
+            <Link
+              href="/play"
+              className="group inline-flex items-center gap-2 rounded-full bg-foreground px-7 py-3.5 text-base font-semibold text-background shadow-xl shadow-foreground/15 transition-transform hover:-translate-y-0.5"
+            >
+              {player && player.games > 0 ? "Продолжить" : "Играть"}
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+            <Link
+              href="/play?demo=1"
+              className="group inline-flex items-center gap-2 rounded-full border border-border bg-card px-7 py-3.5 text-base font-semibold text-foreground transition-all hover:-translate-y-0.5 hover:border-foreground/40"
+            >
+              <Sparkles className="size-4 text-accent" />
+              Как это работает
+            </Link>
+          </div>
           {player && player.games > 0 && (
             <div className="flex items-center gap-3 font-mono text-xs text-muted-foreground">
               <span>{player.games} партий</span>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { Square } from "chess.js";
 import {
   ArrowLeft,
@@ -25,10 +26,22 @@ import {
   type PlayerState,
   type Blunder,
 } from "@/lib/chess/player-store";
+import { DEMO_MATE_BLUNDER } from "@/lib/chess/demo-blunder";
 
 type GameResult = "win" | "loss" | "draw";
 
 export default function PlayPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-dvh items-center justify-center text-muted-foreground">Загружаю…</div>}>
+      <PlayPageInner />
+    </Suspense>
+  );
+}
+
+function PlayPageInner() {
+  const searchParams = useSearchParams();
+  const isDemo = searchParams.get("demo") === "1";
+
   const game = useChessGame();
   const { bestMove, analyse } = useEngine();
   const [player, setPlayer] = useState<PlayerState | null>(null);
@@ -37,12 +50,18 @@ export default function PlayPage() {
   const [worstBlunder, setWorstBlunder] = useState<Blunder | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [resultBanner, setResultBanner] = useState<GameResult | null>(null);
+  const [demoOpen, setDemoOpen] = useState(false);
   const playerColorRef = useRef<"w" | "b">("w");
 
   // Hydrate player state on mount
   useEffect(() => {
     setPlayer(loadPlayer());
-  }, []);
+    if (isDemo) {
+      // Slight delay so the modal animates in nicely
+      const t = setTimeout(() => setDemoOpen(true), 350);
+      return () => clearTimeout(t);
+    }
+  }, [isDemo]);
 
   const finished = game.status !== "playing";
   const playerColor = playerColorRef.current;
@@ -310,6 +329,23 @@ export default function PlayPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {demoOpen && (
+        <PostGameCard
+          result="loss"
+          accuracy={84}
+          blunder={DEMO_MATE_BLUNDER}
+          replayLabel="Сыграть свою партию"
+          onClose={() => {
+            setDemoOpen(false);
+            window.history.replaceState(null, "", "/play");
+          }}
+          onReplay={() => {
+            setDemoOpen(false);
+            window.history.replaceState(null, "", "/play");
+          }}
+        />
       )}
     </div>
   );

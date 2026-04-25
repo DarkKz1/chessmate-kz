@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import type { Square } from "chess.js";
+import { useMemo, useState } from "react";
+import { Chess, type Square } from "chess.js";
 import { Sparkles, X } from "lucide-react";
 import { ChessBoard } from "./chess-board";
 import { useChessGame } from "@/lib/chess/use-chess-game";
@@ -45,6 +45,48 @@ export function PostGameCard({
   const [stage, setStage] = useState<"reveal" | "puzzle" | "solved">(initialStage);
   const puzzleGame = useChessGame(blunder.fen);
 
+  // Compute the from→to squares for the best move (for the arrow overlay
+  // shown during reveal stage). Done once per blunder.
+  const bestArrow = useMemo(() => {
+    try {
+      const c = new Chess(blunder.fen);
+      const m = c.move(blunder.best);
+      if (!m) return null;
+      return { from: m.from as string, to: m.to as string };
+    } catch {
+      return null;
+    }
+  }, [blunder.fen, blunder.best]);
+
+  const playedArrow = useMemo(() => {
+    try {
+      const c = new Chess(blunder.fen);
+      const m = c.move(blunder.played);
+      if (!m) return null;
+      return { from: m.from as string, to: m.to as string };
+    } catch {
+      return null;
+    }
+  }, [blunder.fen, blunder.played]);
+
+  const arrows =
+    stage === "reveal" && bestArrow
+      ? [
+          ...(playedArrow
+            ? [
+                {
+                  from: playedArrow.from,
+                  to: playedArrow.to,
+                  color: "rgba(193, 72, 72, 0.55)",
+                },
+              ]
+            : []),
+          { from: bestArrow.from, to: bestArrow.to, color: "#d4a017" },
+        ]
+      : stage === "solved" && bestArrow
+        ? [{ from: bestArrow.from, to: bestArrow.to, color: "#4d7c4d" }]
+        : undefined;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-4 backdrop-blur-md animate-fade-up md:items-center">
       <div className="relative flex w-full max-w-3xl flex-col gap-6 rounded-3xl border border-border bg-card p-6 shadow-2xl md:p-8">
@@ -87,6 +129,7 @@ export function PostGameCard({
             <ChessBoard
               fen={stage === "puzzle" ? puzzleGame.fen : blunder.fen}
               allowMoves={stage === "puzzle"}
+              arrows={arrows}
               legalMovesFor={(sq: Square) => puzzleGame.legalMoves(sq)}
               onAttemptMove={(from, to) => {
                 const move = puzzleGame.tryMove({ from, to });

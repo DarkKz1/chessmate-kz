@@ -14,6 +14,7 @@ type Props = {
   allowMoves?: boolean;
   inCheck?: boolean;
   lastMove?: { from: Square; to: Square } | null;
+  arrows?: Array<{ from: string; to: string; color?: string }>;
   className?: string;
 };
 
@@ -28,9 +29,20 @@ export function ChessBoard({
   allowMoves = true,
   inCheck = false,
   lastMove,
+  arrows,
   className,
 }: Props) {
   const [selected, setSelected] = useState<Square | null>(null);
+
+  const externalArrows = useMemo(
+    () =>
+      (arrows ?? []).map((a) => ({
+        startSquare: a.from,
+        endSquare: a.to,
+        color: a.color ?? "var(--color-accent)",
+      })),
+    [arrows],
+  );
 
   const squareStyles = useMemo(() => {
     const styles: Record<string, React.CSSProperties> = {};
@@ -106,6 +118,19 @@ export function ChessBoard({
           animationDurationInMs: 220,
           allowDragging: allowMoves,
           allowDrawingArrows: true,
+          arrows: externalArrows,
+          arrowOptions: {
+            color: "var(--color-accent)",
+            secondaryColor: "rgba(193, 72, 72, 0.6)",
+            tertiaryColor: "rgba(77, 124, 77, 0.6)",
+            arrowLengthReducerDenominator: 14,
+            sameTargetArrowLengthReducerDenominator: 4,
+            arrowWidthDenominator: 4,
+            activeArrowWidthMultiplier: 1.2,
+            opacity: 0.9,
+            activeOpacity: 0.55,
+            arrowStartOffset: 0.18,
+          },
           lightSquareStyle: { backgroundColor: lightSquare },
           darkSquareStyle: { backgroundColor: darkSquare },
           dropSquareStyle: {

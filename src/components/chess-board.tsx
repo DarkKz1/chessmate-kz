@@ -37,16 +37,16 @@ export function ChessBoard({
 
     if (lastMove) {
       styles[lastMove.from] = {
-        background: "rgba(247, 201, 72, 0.45)",
+        backgroundColor: "rgba(212, 160, 23, 0.32)",
       };
       styles[lastMove.to] = {
-        background: "rgba(247, 201, 72, 0.55)",
+        backgroundColor: "rgba(212, 160, 23, 0.42)",
       };
     }
 
     if (selected) {
       styles[selected] = {
-        background: "rgba(212, 160, 23, 0.55)",
+        backgroundColor: "rgba(212, 160, 23, 0.5)",
         boxShadow: "inset 0 0 0 3px var(--color-accent)",
       };
       const moves = legalMovesFor?.(selected) ?? [];
@@ -54,12 +54,12 @@ export function ChessBoard({
         const target = m.to;
         styles[target] = m.captured
           ? {
-              background:
-                "radial-gradient(circle, transparent 55%, rgba(236, 80, 80, 0.55) 56%)",
+              backgroundImage:
+                "radial-gradient(circle, transparent 56%, rgba(193, 72, 72, 0.55) 57%)",
             }
           : {
-              background:
-                "radial-gradient(circle, rgba(107, 142, 78, 0.7) 22%, transparent 23%)",
+              backgroundImage:
+                "radial-gradient(circle, rgba(77, 124, 77, 0.55) 22%, transparent 23%)",
             };
       }
     }
@@ -109,7 +109,7 @@ export function ChessBoard({
           lightSquareStyle: { backgroundColor: lightSquare },
           darkSquareStyle: { backgroundColor: darkSquare },
           dropSquareStyle: {
-            background: "rgba(247, 201, 72, 0.45)",
+            backgroundColor: "rgba(212, 160, 23, 0.45)",
             boxShadow: "inset 0 0 0 3px var(--color-accent)",
           },
           squareStyles,

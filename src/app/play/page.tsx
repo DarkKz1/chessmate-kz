@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { ChessBoard } from "@/components/chess-board";
+import { EvalBar } from "@/components/eval-bar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useChessGame } from "@/lib/chess/use-chess-game";
 import { useEngine } from "@/lib/chess/use-engine";
@@ -243,18 +244,25 @@ function PlayPageInner() {
             </div>
           </div>
 
-          <div className="aspect-square w-full max-w-[560px] mx-auto md:mx-0">
-            <ChessBoard
+          <div className="flex w-full max-w-[600px] gap-3 mx-auto md:mx-0">
+            <EvalBar
               fen={game.fen}
               orientation={playerColor === "w" ? "white" : "black"}
-              allowMoves={!finished && game.turn === playerColor && !thinking}
-              inCheck={game.inCheck}
-              lastMove={lastMove}
-              legalMovesFor={(sq) => game.legalMoves(sq)}
-              onAttemptMove={(from, to) =>
-                Boolean(game.tryMove({ from, to }))
-              }
+              className="self-stretch"
             />
+            <div className="aspect-square flex-1">
+              <ChessBoard
+                fen={game.fen}
+                orientation={playerColor === "w" ? "white" : "black"}
+                allowMoves={!finished && game.turn === playerColor && !thinking}
+                inCheck={game.inCheck}
+                lastMove={lastMove}
+                legalMovesFor={(sq) => game.legalMoves(sq)}
+                onAttemptMove={(from, to) =>
+                  Boolean(game.tryMove({ from, to }))
+                }
+              />
+            </div>
           </div>
 
           {resultBanner && analysing && (

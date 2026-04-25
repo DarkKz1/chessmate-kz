@@ -2,8 +2,9 @@
 
 import { Chessboard } from "react-chessboard";
 import type { Square } from "chess.js";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Move } from "chess.js";
+import { playTock } from "@/lib/audio";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -33,6 +34,16 @@ export function ChessBoard({
   className,
 }: Props) {
   const [selected, setSelected] = useState<Square | null>(null);
+
+  // Play a soft tock when the position changes after first render. We
+  // skip the initial mount so opening the board doesn't fire a sound.
+  const lastFenRef = useRef<string>(fen);
+  useEffect(() => {
+    if (lastFenRef.current !== fen) {
+      lastFenRef.current = fen;
+      if (allowMoves || lastMove) playTock();
+    }
+  }, [fen, allowMoves, lastMove]);
 
   const externalArrows = useMemo(
     () =>

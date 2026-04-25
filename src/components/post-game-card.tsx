@@ -5,6 +5,7 @@ import { Chess, type Square } from "chess.js";
 import { Sparkles, X } from "lucide-react";
 import { ChessBoard } from "./chess-board";
 import { useChessGame } from "@/lib/chess/use-chess-game";
+import { playSolved } from "@/lib/audio";
 import {
   markBlunderResolved,
   type Blunder,
@@ -88,8 +89,8 @@ export function PostGameCard({
         : undefined;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-4 backdrop-blur-md animate-fade-up md:items-center">
-      <div className="relative flex w-full max-w-3xl flex-col gap-6 rounded-3xl border border-border bg-card p-6 shadow-2xl md:p-8">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-4 backdrop-blur-md animate-backdrop-in md:items-center">
+      <div className="animate-modal-rise relative flex w-full max-w-3xl flex-col gap-6 rounded-3xl border border-border bg-card p-6 shadow-2xl md:p-8">
         <button
           type="button"
           onClick={onClose}
@@ -136,6 +137,7 @@ export function PostGameCard({
                 if (!move) return false;
                 if (move.san === blunder.best) {
                   markBlunderResolved(blunder.fen);
+                  playSolved();
                   setStage("solved");
                   return true;
                 }

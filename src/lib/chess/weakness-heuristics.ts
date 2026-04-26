@@ -2,8 +2,9 @@ import { Chess, type Move, type Square } from "chess.js";
 import type { BlunderCategory } from "./player-store";
 import { PIECE_VALUES } from "./evaluation";
 
-// For a position, return how many opponent pieces are attacked by us with
-// fewer or equal-value defenders. This roughly measures "tactical pressure".
+// Sum of "we have a winnable threat against an opponent piece" signals on
+// the whole board. Used as a baseline + delta gauge — the *change* in this
+// number from before-our-move to after-our-move is what differentiates moves.
 function tacticalPressure(chess: Chess, attackerColor: "w" | "b"): number {
   const board = chess.board();
   let pressure = 0;
@@ -19,8 +20,6 @@ function tacticalPressure(chess: Chess, attackerColor: "w" | "b"): number {
         sq,
         attackerColor === "w" ? "b" : "w",
       );
-      // Net threat: attackers can win material if they outnumber defenders or
-      // if the cheapest attacker is worth less than the target.
       const target = PIECE_VALUES[piece.type] ?? 0;
       const minAttacker = Math.min(
         ...attackers.map((a) => {
@@ -39,9 +38,8 @@ function tacticalPressure(chess: Chess, attackerColor: "w" | "b"): number {
   return pressure;
 }
 
-function manhattanFromKing(chess: Chess, attackerColor: "w" | "b"): number {
+function kingProximity(chess: Chess, attackerColor: "w" | "b"): number {
   const defenderColor = attackerColor === "w" ? "b" : "w";
-  // Find defender king
   const board = chess.board();
   let kr = 0;
   let kf = 0;
@@ -54,7 +52,6 @@ function manhattanFromKing(chess: Chess, attackerColor: "w" | "b"): number {
       }
     }
   }
-  // Sum: closer attacker pieces = more pressure
   let proximity = 0;
   for (let r = 0; r < 8; r++) {
     for (let f = 0; f < 8; f++) {
@@ -62,89 +59,189 @@ function manhattanFromKing(chess: Chess, attackerColor: "w" | "b"): number {
       if (!p || p.color !== attackerColor || p.type === "k") continue;
       const dist = Math.abs(r - kr) + Math.abs(f - kf);
       const weight = PIECE_VALUES[p.type] ?? 0;
-      proximity += Math.max(0, (8 - dist)) * (weight / 100);
+      proximity += Math.max(0, 8 - dist) * (weight / 100);
     }
   }
   return proximity;
 }
 
+// Squares around the defender king that are attacked by us.
+function kingZoneAttacks(chess: Chess, attackerColor: "w" | "b"): number {
+  const defenderColor = attackerColor === "w" ? "b" : "w";
+  const board = chess.board();
+  let kr = 0;
+  let kf = 0;
+  for (let r = 0; r < 8; r++) {
+    for (let f = 0; f < 8; f++) {
+      const p = board[r][f];
+      if (p && p.type === "k" && p.color === defenderColor) {
+        kr = r;
+        kf = f;
+      }
+    }
+  }
+  let count = 0;
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let df = -1; df <= 1; df++) {
+      const r = kr + dr;
+      const f = kf + df;
+      if (r < 0 || r > 7 || f < 0 || f > 7) continue;
+      const sq = (("abcdefgh"[f] as string) +
+        (8 - r).toString()) as Square;
+      if (chess.attackers(sq, attackerColor).length > 0) count++;
+    }
+  }
+  return count;
+}
+
 function moveSharpness(move: Move): number {
   let s = 0;
-  if (move.flags.includes("c")) s += 30; // capture
-  if (move.flags.includes("e")) s += 25; // en-passant
-  if (move.san.includes("+")) s += 20; // check
-  if (move.san.includes("#")) s += 200; // mate
-  if (move.promotion) s += 40;
+  if (move.flags.includes("c")) s += 35;
+  if (move.flags.includes("e")) s += 30;
+  if (move.san.includes("+")) s += 25;
+  if (move.san.includes("#")) s += 250;
+  if (move.promotion) s += 50;
   return s;
 }
 
-// "hangingPiece bait" — does this move place a meaningful piece (>= bishop)
-// on a square attacked by opponent, but defended by us (so it's not actually
-// hanging — but a casual player might grab it)?
-function hangingPieceBait(chess: Chess, move: Move): number {
-  if (!move.piece || move.piece === "p" || move.piece === "k") return 0;
-  const own = chess.turn(); // turn after move switched, so opposite of our move
-  // actually: in chess.js, after move, chess.turn() is opponent's turn.
-  // So "we" who just moved are the opposite of chess.turn().
-  const movedColor = own === "w" ? "b" : "w";
+// How many squares does the moved piece attack from its destination?
+// Used as activity proxy — more active = more complex for the player to read.
+function pieceActivity(after: Chess, move: Move): number {
+  const piece = move.piece;
+  if (!piece || piece === "k") return 0;
+  const opp = after.turn();
+  // Count squares the just-moved piece can reach by counting opp's defenders
+  // of those squares — simpler proxy: just count moves available from `to`
+  // for that piece type by inspecting board.
+  // Cheap approximation: look at the target square — how many own pieces
+  // attack it right now (us + this piece's coverage proxy).
+  // Even cheaper: rate by piece type bias for activity.
   const targetSq = move.to as Square;
-  const attackers = chess.attackers(targetSq, own);
-  if (attackers.length === 0) return 0;
-  const defenders = chess.attackers(targetSq, movedColor);
-  if (defenders.length === 0) return 0;
-  // Looks attacked but is defended — bait
-  const pieceValue = PIECE_VALUES[move.piece] ?? 0;
-  if (pieceValue >= 320) return 35;
-  return 15;
+  // Number of squares our piece-on-target now attacks
+  const ourColor = opp === "w" ? "b" : "w";
+  let attacks = 0;
+  for (let r = 0; r < 8; r++) {
+    for (let f = 0; f < 8; f++) {
+      const sq = (("abcdefgh"[f] as string) +
+        (8 - r).toString()) as Square;
+      if (sq === targetSq) continue;
+      const att = after.attackers(sq, ourColor);
+      if (att.includes(targetSq)) attacks++;
+    }
+  }
+  return attacks;
 }
 
-// For each weakness category, score how strongly THIS move (by Mimic, just played)
-// challenges that weakness. Higher = better trap for player with that weakness.
+// Central / open-file control as a complexity gauge. Pieces in the center
+// attack more squares = harder for the player to evaluate threats.
+function centralFootprint(after: Chess, mimicColor: "w" | "b"): number {
+  const center = ["d4", "d5", "e4", "e5", "c4", "c5", "f4", "f5"] as Square[];
+  let cnt = 0;
+  for (const sq of center) {
+    if (after.attackers(sq, mimicColor).length > 0) cnt++;
+  }
+  return cnt;
+}
+
+// "hanging piece bait" — does this move place a meaningful piece on a square
+// attacked by opponent but defended by us (the bait — looks free, isn't)?
+function hangingPieceBait(after: Chess, move: Move): number {
+  if (!move.piece || move.piece === "p" || move.piece === "k") return 0;
+  const opponent = after.turn();
+  const movedColor = opponent === "w" ? "b" : "w";
+  const targetSq = move.to as Square;
+  const attackers = after.attackers(targetSq, opponent);
+  if (attackers.length === 0) return 0;
+  const defenders = after.attackers(targetSq, movedColor);
+  if (defenders.length === 0) return 0;
+  const pieceValue = PIECE_VALUES[move.piece] ?? 0;
+  if (pieceValue >= 320) return 50;
+  return 20;
+}
+
+// For each weakness category, score how strongly THIS move (just played by
+// Mimic) challenges that weakness. The bonus is a *delta* — change from the
+// position before our move to after — so different moves get different scores.
 export function bonusForCategory(
   beforeFen: string,
   move: Move,
   category: BlunderCategory,
 ): number {
-  // Build a chess object AFTER our move was played
+  const before = new Chess(beforeFen);
   const after = new Chess(beforeFen);
   try {
     after.move({ from: move.from, to: move.to, promotion: move.promotion });
   } catch {
     return 0;
   }
-  // Mimic's color = the side that just moved = opposite of after.turn()
   const mimicColor: "w" | "b" = after.turn() === "w" ? "b" : "w";
+
+  const dPressure =
+    tacticalPressure(after, mimicColor) -
+    tacticalPressure(before, mimicColor);
+  const dKingProx =
+    kingProximity(after, mimicColor) - kingProximity(before, mimicColor);
+  const dKingZone =
+    kingZoneAttacks(after, mimicColor) -
+    kingZoneAttacks(before, mimicColor);
+  const sharp = moveSharpness(move);
+  const activity = pieceActivity(after, move);
+  const central = centralFootprint(after, mimicColor);
 
   switch (category) {
     case "hanging-piece":
-      // Bait the player into a capture they shouldn't take
-      return hangingPieceBait(after, move) + tacticalPressure(after, mimicColor) * 0.2;
+      // Bait an attacked-but-defended piece + active position to confuse defender
+      return (
+        hangingPieceBait(after, move) +
+        Math.max(0, dPressure) * 0.5 +
+        activity * 1.5 +
+        sharp * 0.3
+      );
 
     case "missed-tactic":
-      // Create complex tactical pressure — many attackers, multiple targets
-      return tacticalPressure(after, mimicColor) * 0.8 + moveSharpness(move) * 0.3;
+      // New pressure + sharp moves + active piece development
+      return (
+        Math.max(0, dPressure) * 1.0 +
+        sharp * 0.5 +
+        activity * 2.0 +
+        central * 4
+      );
 
     case "missed-mate":
-      // Bring pieces close to opponent king. Sharp checks especially.
-      return manhattanFromKing(after, mimicColor) * 0.8 + moveSharpness(move) * 0.6;
+      // Force toward the king + checks
+      return (
+        Math.max(0, dKingProx) * 6 +
+        dKingZone * 25 +
+        sharp * 0.9 +
+        activity * 0.8
+      );
 
     case "lost-material":
-      // Force exchanges + create loose pieces
-      return tacticalPressure(after, mimicColor) * 0.7 + (move.flags.includes("c") ? 25 : 0);
+      // Force exchanges + threats + activity
+      return (
+        Math.max(0, dPressure) * 0.9 +
+        (move.flags.includes("c") ? 40 : 0) +
+        activity * 1.0
+      );
 
     case "weak-king":
-      // Push pieces toward king + open files
-      return manhattanFromKing(after, mimicColor) * 1.0;
+      // King zone control
+      return (
+        Math.max(0, dKingProx) * 8 +
+        dKingZone * 30 +
+        activity * 0.5
+      );
 
     case "positional":
-      // Quiet positions — REWARD calm, REWARD low complexity (inverse of sharpness)
-      return Math.max(0, 40 - moveSharpness(move)) +
-        Math.max(0, 100 - tacticalPressure(after, mimicColor) * 0.5);
+      // Inverse: reward calm, low-activity, low-sharpness moves
+      return (
+        Math.max(0, 50 - sharp) +
+        Math.max(0, -dPressure * 0.4) +
+        Math.max(0, 30 - activity * 2)
+      );
   }
 }
 
-// Pick the top weakness category from the player's weakness map.
-// If all zero, returns null (cold-start case).
 export function topWeakness(
   weaknesses: Record<BlunderCategory, number>,
 ): BlunderCategory | null {

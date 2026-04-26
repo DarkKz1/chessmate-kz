@@ -6,12 +6,12 @@ import { bonusForCategory, topWeakness } from "./weakness-heuristics";
 // Within how many centipawns of the best move we still consider a candidate.
 // Tightening this keeps Mimic objectively strong; loosening makes it more
 // "personality-driven". 60 cp = within ~half a pawn of best.
-const CP_WINDOW = 60;
-const TOP_K = 5;
+const CP_WINDOW = 100;
+const TOP_K = 8;
 
-// How heavily to weight the weakness bonus vs raw eval. Calibrated so that
-// 100 bonus points = 50 cp of evaluation.
-const BIAS_FACTOR = 0.5;
+// How heavily to weight the weakness bonus vs raw eval. Tuned via
+// tools/verify.ts on a curated set of mid-game positions.
+const BIAS_FACTOR = 2.0;
 
 // Search with bias toward the player's most common weakness category.
 // Falls back to plain best-move when there's no weakness data yet (cold start)

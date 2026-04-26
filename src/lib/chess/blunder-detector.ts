@@ -2,13 +2,13 @@ import { Chess, type Move } from "chess.js";
 import { search } from "./simple-engine";
 import type { Blunder, BlunderCategory } from "./player-store";
 
-const PIECE_NAME_RU: Record<string, string> = {
-  p: "пешку",
-  n: "коня",
-  b: "слона",
-  r: "ладью",
-  q: "ферзя",
-  k: "короля",
+const PIECE_NAME: Record<string, string> = {
+  p: "pawn",
+  n: "knight",
+  b: "bishop",
+  r: "rook",
+  q: "queen",
+  k: "king",
 };
 
 function classifyBlunder(
@@ -36,20 +36,20 @@ function lessonFor(
 ): string {
   switch (category) {
     case "missed-mate":
-      return `Можно было поставить мат: ${best.san}.`;
+      return `you missed mate. ${best.san} ends it.`;
     case "lost-material":
-      return `Этот ход стоил материала. Лучше было ${best.san}.`;
+      return `that move cost you material. ${best.san} held the line.`;
     case "missed-tactic":
-      return `Был тактический шанс — ${best.san} забирал ${
-        best.captured ? PIECE_NAME_RU[best.captured] : "инициативу"
+      return `there was a tactic — ${best.san} ${
+        best.captured ? `won the ${PIECE_NAME[best.captured]}` : "kept initiative"
       }.`;
     case "hanging-piece":
-      return `Ты подставил ${PIECE_NAME_RU[played.piece]} под удар. Сильнее ${best.san}.`;
+      return `you hung the ${PIECE_NAME[played.piece]}. ${best.san} was safer.`;
     case "weak-king":
-      return `Король стал слишком уязвим. Лучше было ${best.san}.`;
+      return `your king was exposed. ${best.san} kept it covered.`;
     case "positional":
     default:
-      return `Аккуратнее — ${best.san} был тоньше.`;
+      return `${best.san} was a touch sharper.`;
   }
 }
 

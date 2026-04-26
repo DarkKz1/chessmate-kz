@@ -95,23 +95,52 @@ export function LandingHero() {
           </p>
 
           <div className="mt-3 flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
-            <Link
-              href="/play"
-              className="group inline-flex items-center gap-2 border-2 border-ink bg-ink px-7 py-3 font-typewriter text-[14px] uppercase tracking-[0.12em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
-            >
-              {player && player.games > 0 ? "continue" : "start playing"}
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <button
-              type="button"
-              onClick={startAsAlex}
-              className="group inline-flex items-center gap-2 border-2 border-ink bg-paper-card px-7 py-3 font-typewriter text-[14px] uppercase tracking-[0.12em] text-ink transition-all hover:-translate-y-0.5 hover:bg-paper-deep"
-            >
-              play as alex →
-            </button>
+            {player && player.games > 0 ? (
+              <>
+                <Link
+                  href="/play"
+                  className="group inline-flex items-center gap-2 border-2 border-ink bg-ink px-7 py-3 font-typewriter text-[14px] uppercase tracking-[0.12em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
+                >
+                  continue
+                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={startAsAlex}
+                  className="group inline-flex items-center gap-2 border-2 border-ink bg-paper-card px-7 py-3 font-typewriter text-[14px] uppercase tracking-[0.12em] text-ink transition-all hover:-translate-y-0.5 hover:bg-paper-deep"
+                >
+                  play as alex →
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={startAsAlex}
+                  className="group inline-flex items-center gap-2 border-2 border-ink bg-ink px-7 py-3 font-typewriter text-[14px] uppercase tracking-[0.12em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
+                >
+                  play as alex (demo)
+                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+                </button>
+                <Link
+                  href="/play"
+                  className="group inline-flex items-center gap-2 border-2 border-ink bg-paper-card px-7 py-3 font-typewriter text-[14px] uppercase tracking-[0.12em] text-ink transition-all hover:-translate-y-0.5 hover:bg-paper-deep"
+                >
+                  start fresh
+                </Link>
+              </>
+            )}
           </div>
           <p className="mt-1 max-w-md font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-light">
-            new here? play as <span className="text-red-ink">alex</span> — a 1100-rated player with a profile already built. mimic targets his weak spots from move one.
+            {player && player.games > 0 ? (
+              <>
+                play as <span className="text-red-ink">alex</span> — a 1100-rated profile with a built-in weakness map, so mimic's targeting kicks in from move one.
+              </>
+            ) : (
+              <>
+                <span className="text-red-ink">alex</span> is a pre-built 1100 profile with a weakness map already filled in — mimic targets his weak spots from move one. choose <em>start fresh</em> to build your own.
+              </>
+            )}
           </p>
 
           {player && player.games > 0 && (

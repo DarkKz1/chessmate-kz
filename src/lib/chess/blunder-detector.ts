@@ -36,20 +36,20 @@ function lessonFor(
 ): string {
   switch (category) {
     case "missed-mate":
-      return `you missed mate. ${best.san} ends it.`;
+      return `mate was waiting. ${best.san} closes the door.`;
     case "lost-material":
-      return `that move cost you material. ${best.san} held the line.`;
+      return `the wood walked off the board. ${best.san} keeps it.`;
     case "missed-tactic":
-      return `there was a tactic — ${best.san} ${
-        best.captured ? `won the ${PIECE_NAME[best.captured]}` : "kept initiative"
-      }.`;
+      return best.captured
+        ? `${best.san} took the ${PIECE_NAME[best.captured]}. you blinked.`
+        : `${best.san} was the spark. you held the match.`;
     case "hanging-piece":
-      return `you hung the ${PIECE_NAME[played.piece]}. ${best.san} was safer.`;
+      return `the ${PIECE_NAME[played.piece]} reached into nothing. ${best.san} keeps the line.`;
     case "weak-king":
-      return `your king was exposed. ${best.san} kept it covered.`;
+      return `your king felt the draft. ${best.san} closes the window.`;
     case "positional":
     default:
-      return `${best.san} was a touch sharper.`;
+      return `${best.san} hummed quieter, and won by a margin.`;
   }
 }
 

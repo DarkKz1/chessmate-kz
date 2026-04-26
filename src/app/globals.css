@@ -151,9 +151,8 @@ body {
   color: var(--foreground);
 }
 
-/* Notebook page — ruled lines + red margin
-   The grid is a faint horizontal rule every 28px,
-   and a single red vertical line at left margin. */
+/* Notebook page — ruled lines + red margin + paper grain + a few coffee stains.
+   The page should feel used, not pristine. */
 body {
   font-family: var(--font-sans);
   font-feature-settings: "ss01", "cv11";
@@ -161,11 +160,28 @@ body {
   text-rendering: optimizeLegibility;
   background-color: var(--paper);
   background-image:
+    /* coffee stain top-right */
+    radial-gradient(
+      ellipse 180px 140px at 92% 6%,
+      rgba(120, 70, 30, 0.10) 0%,
+      rgba(120, 70, 30, 0.04) 50%,
+      transparent 75%
+    ),
+    /* coffee ring lower-left */
+    radial-gradient(
+      circle 90px at 8% 88%,
+      transparent 60%,
+      rgba(120, 70, 30, 0.07) 62%,
+      rgba(120, 70, 30, 0.04) 67%,
+      transparent 72%
+    ),
     /* paper grain — subtle noise via radial dots */
-    radial-gradient(circle at 12% 8%, rgba(60, 40, 20, 0.04) 0px, transparent 1px),
-    radial-gradient(circle at 78% 18%, rgba(60, 40, 20, 0.03) 0px, transparent 1px),
-    radial-gradient(circle at 35% 67%, rgba(60, 40, 20, 0.03) 0px, transparent 1px),
-    radial-gradient(circle at 88% 81%, rgba(60, 40, 20, 0.04) 0px, transparent 1px),
+    radial-gradient(circle at 12% 8%, rgba(60, 40, 20, 0.05) 0px, transparent 1px),
+    radial-gradient(circle at 78% 18%, rgba(60, 40, 20, 0.04) 0px, transparent 1px),
+    radial-gradient(circle at 35% 67%, rgba(60, 40, 20, 0.04) 0px, transparent 1px),
+    radial-gradient(circle at 88% 81%, rgba(60, 40, 20, 0.05) 0px, transparent 1px),
+    radial-gradient(circle at 22% 41%, rgba(60, 40, 20, 0.03) 0px, transparent 1px),
+    radial-gradient(circle at 64% 52%, rgba(60, 40, 20, 0.04) 0px, transparent 1px),
     /* ruled horizontal lines */
     repeating-linear-gradient(
       to bottom,
@@ -174,23 +190,40 @@ body {
       var(--grid-blue) 27px,
       var(--grid-blue) 28px
     );
-  background-size: 600px 600px, 600px 600px, 600px 600px, 600px 600px, 100% 28px;
+  background-size:
+    100% 100%,
+    100% 100%,
+    480px 480px, 480px 480px, 480px 480px, 480px 480px, 480px 480px, 480px 480px,
+    100% 28px;
   background-attachment: fixed;
-  background-blend-mode: multiply, multiply, multiply, multiply, normal;
 }
 
-/* Aged paper edges — vignette */
+/* Aged paper edges — vignette + corner darkening */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(
-    ellipse at center,
-    transparent 50%,
-    rgba(80, 50, 25, 0.08) 100%
-  );
   z-index: 0;
+  background:
+    /* corner shadow top-left */
+    radial-gradient(
+      ellipse 280px 280px at 0% 0%,
+      rgba(80, 50, 25, 0.14) 0%,
+      transparent 60%
+    ),
+    /* corner shadow bottom-right */
+    radial-gradient(
+      ellipse 320px 320px at 100% 100%,
+      rgba(80, 50, 25, 0.12) 0%,
+      transparent 60%
+    ),
+    /* full edge vignette */
+    radial-gradient(
+      ellipse at center,
+      transparent 55%,
+      rgba(80, 50, 25, 0.10) 100%
+    );
 }
 
 /* Display = handwritten ink */

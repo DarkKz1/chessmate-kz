@@ -21,6 +21,26 @@ The longer you play, the sharper Mimic cuts.
 
 Adults rated 800–1600 who play chess 1–3 times a week and don't know *why* they lose. They've tried chess.com — accuracy 81%, three blunders, fine. They've tried lichess — Stockfish says −2.3, fine. Neither of those tells them anything about *themselves as players*. Mimic does.
 
+## Why now
+
+Three windows are open at once:
+
+1. **Chess is back as Gen-Z spectator content.** GothamChess + Hikaru + the Botez sisters pulled chess into TikTok in 2021–24; the engagement curve hasn't bent yet. Search interest in "how to get better at chess" is at a ten-year high.
+2. **AI moved from "feature" to "selection function".** Until 2024, "AI in a chess app" meant Stockfish under the hood. Mimic's claim — *the AI's identity is your weakness map* — is only buildable now that personalisation engines and behavioural fingerprinting are cheap.
+3. **The Stockfish / chess.com duopoly under-serves improvement.** Both platforms grade you ("accuracy 81%"); neither *coaches* you. There's an intent gap — players willing to pay $5–15/month for guidance — that neither incumbent has reason to fill.
+
+Build the personal-coach product into that gap before chess.com decides it's worth doing.
+
+## Five-year picture
+
+Today: an opponent built from your blunders. One screen, no account.
+
+**Year 1.** Web product reaches 50K MAU on the back of "play your past self" loop. Mobile app. First $15/mo paid tier — deeper analysis, longer history, cross-device sync.
+
+**Year 3.** The same engine architecture for **Go, shogi, poker, StarCraft replays** — anywhere a player has a record of decisions and a "what should I have done?" question. Mimic isn't a chess product; it's a behavioural-mirror engine that ships first in the cleanest data domain (chess) before generalising.
+
+**Year 5.** White-label "Mimic-style" coaches for non-game skill domains — coding interviews, sales-call analysis, music practice. Same bones: capture decisions → fingerprint weaknesses → drill them with synthetic challenge. The chess product is the wedge; the platform is the prize.
+
 ## How it differs
 
 |  | chess.com | lichess | **Mimic** |

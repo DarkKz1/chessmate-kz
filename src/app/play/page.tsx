@@ -187,129 +187,75 @@ function PlayPageInner() {
       <header className="flex items-center justify-between border-b-2 border-ink/30 px-4 py-4 md:px-10">
         <Link
           href="/"
-          className="group flex items-center gap-2 font-typewriter text-[12px] uppercase tracking-[0.15em] text-ink-soft transition-colors hover:text-ink"
+          className="group flex items-center gap-2 font-hand text-[26px] leading-none text-ink transition-colors hover:text-red-ink"
         >
           <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
-          back · mimic
+          mimic
         </Link>
-        <div className="flex items-center gap-3 font-typewriter text-[11px] uppercase tracking-[0.12em] text-ink-light">
-          <span>
-            depth {player ? ratingToDepth(player.rating) : "—"}
-          </span>
-          <span aria-hidden>·</span>
-          <span>
-            {player ? `${player.wins}–${player.draws}–${player.losses}` : "0–0–0"}
-          </span>
-          <ThemeToggle />
-        </div>
+        <ThemeToggle />
       </header>
 
-      <main className="mx-auto grid w-full max-w-6xl flex-1 gap-8 px-4 py-8 md:grid-cols-[1fr_320px] md:px-10 md:py-10">
-        <div className="flex flex-col gap-5">
-          <div className="flex items-end justify-between">
-            <div>
-              <h1 className="font-hand text-[40px] leading-[0.9] text-ink md:text-[56px]">
-                {finished
-                  ? "game over"
-                  : thinking
-                    ? "mimic is thinking…"
-                    : game.turn === playerColor
-                      ? "your move"
-                      : "mimic's move"}
-              </h1>
-              <p className="mt-2 font-typewriter text-[11px] uppercase tracking-[0.15em] text-ink-light">
-                {finished
-                  ? "the move that decided this game →"
-                  : "difficulty adapts to your play"}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleResign}
-                disabled={finished}
-                title="resign"
-                aria-label="resign"
-                className="flex size-10 items-center justify-center border-2 border-ink bg-paper-card text-ink transition-colors hover:bg-paper-deep disabled:opacity-30"
-              >
-                <Flag className="size-4" />
-              </button>
-              <button
-                type="button"
-                onClick={handleNewGame}
-                title="new game"
-                aria-label="new game"
-                className="flex size-10 items-center justify-center border-2 border-ink bg-paper-card text-ink transition-colors hover:bg-paper-deep"
-              >
-                <RotateCcw className="size-4" />
-              </button>
-            </div>
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center gap-6 px-4 py-8 md:py-12">
+        <div className="flex w-full items-end justify-between">
+          <h1 className="font-hand text-[40px] leading-[0.9] text-ink md:text-[56px]">
+            {finished
+              ? "game over"
+              : thinking
+                ? "mimic is thinking…"
+                : game.turn === playerColor
+                  ? "your move"
+                  : "mimic's move"}
+          </h1>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleResign}
+              disabled={finished}
+              title="resign"
+              aria-label="resign"
+              className="flex size-10 items-center justify-center border-2 border-ink bg-paper-card text-ink transition-colors hover:bg-paper-deep disabled:opacity-30"
+            >
+              <Flag className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleNewGame}
+              title="new game"
+              aria-label="new game"
+              className="flex size-10 items-center justify-center border-2 border-ink bg-paper-card text-ink transition-colors hover:bg-paper-deep"
+            >
+              <RotateCcw className="size-4" />
+            </button>
           </div>
-
-          <div className="flex w-full max-w-[600px] gap-3 mx-auto md:mx-0">
-            <EvalBar
-              fen={game.fen}
-              orientation={playerColor === "w" ? "white" : "black"}
-              className="self-stretch"
-            />
-            <div className="aspect-square flex-1 border-2 border-ink shadow-[6px_6px_0_var(--paper-dark)]">
-              <ChessBoard
-                fen={game.fen}
-                orientation={playerColor === "w" ? "white" : "black"}
-                allowMoves={!finished && game.turn === playerColor && !thinking}
-                inCheck={game.inCheck}
-                lastMove={lastMove}
-                legalMovesFor={(sq) => game.legalMoves(sq)}
-                onAttemptMove={(from, to) =>
-                  Boolean(game.tryMove({ from, to }))
-                }
-              />
-            </div>
-          </div>
-
-          {resultBanner && analysing && (
-            <div className="flex items-center justify-center gap-2 border-2 border-ink/40 bg-paper-card px-4 py-3 font-typewriter text-[11px] uppercase tracking-[0.15em] text-ink-soft animate-fade-up">
-              <Loader2 className="size-4 animate-spin" />
-              mimic is finding the move that broke you…
-            </div>
-          )}
         </div>
 
-        <aside className="flex flex-col gap-4">
-          <div className="border-2 border-ink bg-paper-card p-4 shadow-[4px_4px_0_var(--paper-dark)]">
-            <div className="flex items-center justify-between border-b-2 border-ink/30 pb-2 font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-soft">
-              <span>moves</span>
-              <span>{game.history.length}</span>
-            </div>
-            <MoveList history={game.history} />
+        <div className="flex w-full max-w-[640px] gap-3">
+          <EvalBar
+            fen={game.fen}
+            orientation={playerColor === "w" ? "white" : "black"}
+            className="self-stretch"
+          />
+          <div className="aspect-square flex-1 border-2 border-ink shadow-[6px_6px_0_var(--paper-dark)]">
+            <ChessBoard
+              fen={game.fen}
+              orientation={playerColor === "w" ? "white" : "black"}
+              allowMoves={!finished && game.turn === playerColor && !thinking}
+              inCheck={game.inCheck}
+              lastMove={lastMove}
+              legalMovesFor={(sq) => game.legalMoves(sq)}
+              onAttemptMove={(from, to) =>
+                Boolean(game.tryMove({ from, to }))
+              }
+            />
           </div>
+        </div>
 
-          {player && player.games > 0 && (
-            <div className="border-2 border-ink bg-paper-card p-4 shadow-[4px_4px_0_var(--paper-dark)]">
-              <div className="font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-soft">
-                your level
-              </div>
-              <div className="mt-2 flex items-baseline gap-2">
-                <div className="font-hand text-[44px] leading-none text-ink">
-                  {Math.round(player.rating)}
-                </div>
-                <div className="font-typewriter text-[10px] uppercase tracking-[0.15em] text-ink-light">
-                  / 100
-                </div>
-              </div>
-              <div className="mt-3 h-1.5 overflow-hidden border border-ink/40 bg-paper-deep">
-                <div
-                  className="h-full bg-ink transition-all"
-                  style={{ width: `${player.rating}%` }}
-                />
-              </div>
-              <div className="mt-3 flex items-center justify-between font-typewriter text-[10px] uppercase tracking-[0.15em] text-ink-light">
-                <span>{player.games} games</span>
-                <span>depth {ratingToDepth(player.rating)}</span>
-              </div>
-            </div>
-          )}
-        </aside>
+        {resultBanner && analysing && (
+          <div className="flex items-center justify-center gap-2 border-2 border-ink/40 bg-paper-card px-4 py-3 font-typewriter text-[11px] uppercase tracking-[0.15em] text-ink-soft animate-fade-up">
+            <Loader2 className="size-4 animate-spin" />
+            mimic is finding the move that broke you…
+          </div>
+        )}
       </main>
 
       {finished && worstBlunder && (
@@ -367,34 +313,3 @@ function PlayPageInner() {
   );
 }
 
-function MoveList({ history }: { history: { san: string }[] }) {
-  if (history.length === 0) {
-    return (
-      <div className="px-1 py-6 text-center font-hand text-[18px] text-ink-light">
-        make the first move
-      </div>
-    );
-  }
-  const rows: { num: number; w?: string; b?: string }[] = [];
-  for (let i = 0; i < history.length; i += 2) {
-    rows.push({
-      num: i / 2 + 1,
-      w: history[i]?.san,
-      b: history[i + 1]?.san,
-    });
-  }
-  return (
-    <ol className="mt-2 max-h-64 space-y-0.5 overflow-y-auto">
-      {rows.map((row) => (
-        <li
-          key={row.num}
-          className="grid grid-cols-[2rem_1fr_1fr] items-center gap-2 px-1 py-1 font-mono text-[12px] text-ink"
-        >
-          <span className="text-ink-light">{row.num}.</span>
-          <span className="font-semibold">{row.w ?? ""}</span>
-          <span className="font-semibold">{row.b ?? ""}</span>
-        </li>
-      ))}
-    </ol>
-  );
-}

@@ -74,11 +74,9 @@ export function LandingHero() {
 
   return (
     <>
-      <section className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center gap-12 px-4 py-12 text-center md:py-20">
-        <div className="flex flex-col items-center gap-6 animate-fade-up">
-          <span className="stamp">Beta · vol. 01</span>
-
-          <h1 className="font-hand text-[64px] font-semibold leading-[0.92] tracking-tight text-ink md:text-[120px]">
+      <section className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center gap-12 px-4 py-12 text-center md:py-24">
+        <div className="flex flex-col items-center gap-7 animate-fade-up">
+          <h1 className="font-hand text-[64px] font-semibold leading-[0.92] tracking-tight text-ink md:text-[128px]">
             chess that
             <br />
             <span className="text-red-ink">remembers</span>
@@ -86,86 +84,33 @@ export function LandingHero() {
             your mistakes.
           </h1>
 
-          <p className="max-w-xl font-typewriter text-[15px] leading-relaxed text-ink-soft md:text-base">
-            an opponent built from <em>your</em> blunders.
-            <br />
-            every weak move you make comes back tomorrow —
-            <br />
-            and the AI starts hunting where you fall apart.
-          </p>
-
-          <div className="mt-3 flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
-            {player && player.games > 0 ? (
-              <>
-                <Link
-                  href="/play"
-                  className="group inline-flex items-center gap-2 border-2 border-ink bg-ink px-7 py-3 font-typewriter text-[14px] uppercase tracking-[0.12em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
-                >
-                  continue
-                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
-                </Link>
-                <button
-                  type="button"
-                  onClick={startAsAlex}
-                  className="group inline-flex items-center gap-2 border-2 border-ink bg-paper-card px-7 py-3 font-typewriter text-[14px] uppercase tracking-[0.12em] text-ink transition-all hover:-translate-y-0.5 hover:bg-paper-deep"
-                >
-                  play as alex →
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={startAsAlex}
-                  className="group inline-flex items-center gap-2 border-2 border-ink bg-ink px-7 py-3 font-typewriter text-[14px] uppercase tracking-[0.12em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
-                >
-                  play as alex (demo)
-                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
-                </button>
-                <Link
-                  href="/play"
-                  className="group inline-flex items-center gap-2 border-2 border-ink bg-paper-card px-7 py-3 font-typewriter text-[14px] uppercase tracking-[0.12em] text-ink transition-all hover:-translate-y-0.5 hover:bg-paper-deep"
-                >
-                  start fresh
-                </Link>
-              </>
-            )}
-          </div>
-          <p className="mt-1 max-w-md font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-light">
-            {player && player.games > 0 ? (
-              <>
-                play as <span className="text-red-ink">alex</span> — a 1100-rated profile with a built-in weakness map, so mimic's targeting kicks in from move one.
-              </>
-            ) : (
-              <>
-                <span className="text-red-ink">alex</span> is a pre-built 1100 profile with a weakness map already filled in — mimic targets his weak spots from move one. choose <em>start fresh</em> to build your own.
-              </>
-            )}
-          </p>
+          {player && player.games > 0 ? (
+            <Link
+              href="/play"
+              className="group inline-flex items-center gap-2 border-2 border-ink bg-ink px-9 py-4 font-typewriter text-[15px] uppercase tracking-[0.12em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
+            >
+              continue
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={startAsAlex}
+              className="group inline-flex items-center gap-2 border-2 border-ink bg-ink px-9 py-4 font-typewriter text-[15px] uppercase tracking-[0.12em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
+            >
+              play
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+            </button>
+          )}
 
           {player && player.games > 0 && (
-            <div className="flex items-center gap-3 font-mono text-xs text-ink-light">
-              {asAlex && <span className="stamp text-[9px]">demo</span>}
-              <span>{player.games} games</span>
-              <span aria-hidden>·</span>
-              <span>level {Math.round(player.rating)}</span>
-              {player.streak > 0 && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span className="inline-flex items-center gap-1 text-red-ink">
-                    <Flame className="size-3" />
-                    {player.streak}
-                  </span>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={resetSelf}
-                className="ml-2 underline decoration-dashed underline-offset-4 hover:text-ink"
-              >
-                reset
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={resetSelf}
+              className="font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-light underline decoration-dashed underline-offset-4 hover:text-ink"
+            >
+              start fresh
+            </button>
           )}
         </div>
 
@@ -176,9 +121,6 @@ export function LandingHero() {
               onAttemptMove={() => false}
               allowMoves={false}
             />
-          </div>
-          <div className="mt-3 text-center font-hand text-[18px] text-ink-light">
-            opening — italian game, 6 moves in
           </div>
         </div>
 

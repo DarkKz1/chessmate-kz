@@ -11,7 +11,7 @@ export const DEMO_BLUNDER: Blunder = {
   cpLoss: 240,
   category: "missed-tactic",
   shortLesson:
-    "there was a tactic — cxd5 cracked open d5 and snatched the initiative.",
+    "cxd5 cracked d5 wide open. the initiative slipped through your fingers.",
   date: Date.now(),
   resolved: false,
 };
@@ -24,7 +24,7 @@ export const DEMO_MATE_BLUNDER: Blunder = {
   best: "Rd8#",
   cpLoss: 99000,
   category: "missed-mate",
-  shortLesson: "you missed mate. Rd8# ends it.",
+  shortLesson: "mate was waiting. Rd8# closes the door.",
   date: Date.now(),
   resolved: false,
 };

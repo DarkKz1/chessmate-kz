@@ -134,7 +134,7 @@ export function LandingHero() {
             <span>black to move</span>
           </div>
 
-          <div className="relative aspect-square w-full max-w-[440px] border-2 border-ink shadow-[6px_6px_0_var(--paper-dark)]">
+          <div className="relative aspect-square w-full max-w-[440px] animate-breath border-2 border-ink shadow-[6px_6px_0_var(--paper-dark)]">
             <ChessBoard
               fen={SHOWCASE_FEN}
               onAttemptMove={() => false}
@@ -145,10 +145,28 @@ export function LandingHero() {
 
           {/* Handwritten margin note pointing at the board */}
           <div className="relative mt-3 max-w-[440px]">
-            <p className="font-hand text-[22px] leading-snug text-ink md:text-[26px]">
+            <p className="font-hand text-[22px] leading-snug text-ink md:text-[26px] animate-ink-bleed">
               the knight reached into nothing.
               <br />
-              <span className="text-red-ink">d4</span>{" "}
+              <span className="relative inline-block text-red-ink">
+                d4
+                <svg
+                  aria-hidden
+                  className="ink-underline-svg absolute left-[-2px] right-[-2px] -bottom-1"
+                  viewBox="0 0 60 8"
+                  preserveAspectRatio="none"
+                  width="100%"
+                  height="8"
+                >
+                  <path
+                    d="M2 5 Q 15 1 30 4 T 58 3"
+                    stroke="var(--red-ink)"
+                    strokeWidth="2"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>{" "}
               <span className="text-ink-soft">was the line.</span>
             </p>
             <p className="mt-2 font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-light">

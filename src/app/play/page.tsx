@@ -79,9 +79,8 @@ function PlayPageInner() {
       const t = setTimeout(() => setDemoOpen(true), 350);
       return () => clearTimeout(t);
     }
-    // First-run brief for Alex demo persona — concept reveal moment
+    // First-run brief — concept reveal moment for both personas
     if (
-      isAlexActive() &&
       typeof window !== "undefined" &&
       !localStorage.getItem(ALEX_BRIEF_KEY)
     ) {
@@ -95,6 +94,15 @@ function PlayPageInner() {
       localStorage.setItem(ALEX_BRIEF_KEY, "1");
     }
   }, []);
+
+  const openDossier = useCallback(() => {
+    setAlexBriefOpen(true);
+  }, []);
+
+  const patternsCount = useMemo(() => {
+    if (!player) return 0;
+    return Object.values(player.weaknesses).reduce((a, b) => a + b, 0);
+  }, [player]);
 
   const finished = game.status !== "playing";
   const playerColor = playerColorRef.current;
@@ -221,7 +229,20 @@ function PlayPageInner() {
           <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
           mimic
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center gap-3">
+          {player && (
+            <button
+              type="button"
+              onClick={openDossier}
+              className="flex items-center gap-2 border-2 border-ink/30 bg-paper-card px-3 py-1.5 font-typewriter text-[10px] uppercase tracking-[0.16em] text-ink-soft transition-colors hover:border-ink hover:text-ink"
+              title="view mimic's dossier on you"
+            >
+              <span className="text-red-ink">●</span>
+              {patternsCount} {patternsCount === 1 ? "pattern" : "patterns"}
+            </button>
+          )}
+          <ThemeToggle />
+        </div>
       </header>
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center gap-6 px-4 py-8 md:py-12">
@@ -353,12 +374,12 @@ function AlexBrief({
   player: PlayerState;
   onClose: () => void;
 }) {
-  // Build a sorted list of categories with counts > 0 — Mimic's actual
-  // private dossier on this player. Reveals what the AI already knows.
   const entries = Object.entries(player.weaknesses)
     .filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1]) as [keyof typeof CATEGORY_PHRASE, number][];
   const top = entries[0];
+  const isFresh = player.games === 0 || entries.length === 0;
+  const isAlex = isAlexActive();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 animate-backdrop-in">
@@ -366,34 +387,68 @@ function AlexBrief({
         <div className="font-typewriter text-[10px] uppercase tracking-[0.22em] text-red-ink">
           mimic · dossier
         </div>
-        <h2 className="mt-2 font-hand text-[44px] leading-[0.95] text-ink md:text-[56px]">
-          hello, alex.
-        </h2>
-        <p className="mt-3 font-typewriter text-[12px] uppercase leading-relaxed tracking-[0.14em] text-ink-soft">
-          i've watched {player.games} of your games.
-          <br />
-          here's what i'm going to use against you:
-        </p>
 
-        <ul className="mt-5 space-y-2">
-          {entries.map(([cat, n]) => (
-            <li
-              key={cat}
-              className="flex items-baseline justify-between border-b-2 border-dashed border-ink/15 pb-2 font-typewriter text-[13px] uppercase tracking-[0.08em] text-ink"
-            >
-              <span>{CATEGORY_PHRASE[cat] ?? cat}</span>
-              <span className="font-hand text-[22px] leading-none text-red-ink">
-                {n}
-              </span>
-            </li>
-          ))}
-        </ul>
-
-        {top && (
-          <p className="mt-5 font-hand text-[20px] leading-snug text-ink">
-            today i'm hunting your{" "}
-            <span className="text-red-ink">{CATEGORY_PHRASE[top[0]]}</span>.
-          </p>
+        {isFresh ? (
+          <>
+            <h2 className="mt-2 font-hand text-[44px] leading-[0.95] text-ink md:text-[56px]">
+              welcome.
+            </h2>
+            <p className="mt-3 font-typewriter text-[12px] uppercase leading-relaxed tracking-[0.14em] text-ink-soft">
+              i have nothing on you yet.
+              <br />
+              play five games — and i'll start
+              <br />
+              mapping where you fall apart.
+            </p>
+            <ul className="mt-5 space-y-2">
+              {(
+                ["hanging-piece", "missed-tactic", "missed-mate", "weak-king", "lost-material", "positional"] as const
+              ).map((cat) => (
+                <li
+                  key={cat}
+                  className="flex items-baseline justify-between border-b-2 border-dashed border-ink/15 pb-2 font-typewriter text-[13px] uppercase tracking-[0.08em] text-ink-light"
+                >
+                  <span>{CATEGORY_PHRASE[cat]}</span>
+                  <span className="font-hand text-[20px] leading-none text-ink-light">
+                    —
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-5 font-hand text-[20px] leading-snug text-ink">
+              first move is yours.
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 className="mt-2 font-hand text-[44px] leading-[0.95] text-ink md:text-[56px]">
+              {isAlex ? "hello, alex." : "back."}
+            </h2>
+            <p className="mt-3 font-typewriter text-[12px] uppercase leading-relaxed tracking-[0.14em] text-ink-soft">
+              i've watched {player.games} of your games.
+              <br />
+              here's what i'm going to use against you:
+            </p>
+            <ul className="mt-5 space-y-2">
+              {entries.map(([cat, n]) => (
+                <li
+                  key={cat}
+                  className="flex items-baseline justify-between border-b-2 border-dashed border-ink/15 pb-2 font-typewriter text-[13px] uppercase tracking-[0.08em] text-ink"
+                >
+                  <span>{CATEGORY_PHRASE[cat] ?? cat}</span>
+                  <span className="font-hand text-[22px] leading-none text-red-ink">
+                    {n}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {top && (
+              <p className="mt-5 font-hand text-[20px] leading-snug text-ink">
+                today i'm hunting your{" "}
+                <span className="text-red-ink">{CATEGORY_PHRASE[top[0]]}</span>.
+              </p>
+            )}
+          </>
         )}
 
         <button

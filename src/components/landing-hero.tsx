@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Chess } from "chess.js";
-import { ArrowRight, Flame } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { ChessBoard } from "./chess-board";
 import { PostGameCard } from "./post-game-card";
 import {
@@ -13,22 +13,27 @@ import {
 } from "@/lib/chess/player-store";
 import { seedAlex, isAlexActive, clearPersona } from "@/lib/chess/demo-persona";
 
-const SHOWCASE = [
-  "e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "g8f6",
-  "d2d3", "f8c5", "c1g5", "h7h6", "g5f6", "d8f6",
+// A real-feeling blunder we showcase on the landing page. Black to move —
+// played Bb5+ (looks active), but Nxe5 was the tactic Mimic would punish you
+// for missing. The arrows + handwritten margin note tell the whole story
+// before a click.
+const SHOWCASE_FEN =
+  "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
+const SHOWCASE_ARROWS = [
+  // played — red ink (blundered move) — Bg5
+  { from: "c1", to: "g5", color: "rgba(184, 52, 30, 0.65)" },
+  // best — blue ink (the move you missed) — d4
+  { from: "d2", to: "d4", color: "#1c2a4a" },
 ];
 
 export function LandingHero() {
-  const [fen, setFen] = useState(() => new Chess().fen());
   const [pendingPuzzle, setPendingPuzzle] = useState<Blunder | null>(null);
   const [puzzleOpen, setPuzzleOpen] = useState(false);
   const [player, setPlayer] = useState<PlayerState | null>(null);
-  const [asAlex, setAsAlex] = useState(false);
 
   useEffect(() => {
     const p = loadPlayer();
     setPlayer(p);
-    setAsAlex(isAlexActive());
     const next = p.blunders.find((b) => !b.resolved);
     if (next) setPendingPuzzle(next);
   }, []);
@@ -44,27 +49,6 @@ export function LandingHero() {
     window.location.reload();
   };
 
-  useEffect(() => {
-    const game = new Chess();
-    let i = 0;
-    const id = setInterval(() => {
-      if (i >= SHOWCASE.length) {
-        game.reset();
-        i = 0;
-        setFen(game.fen());
-        return;
-      }
-      const m = SHOWCASE[i++];
-      try {
-        game.move({ from: m.slice(0, 2), to: m.slice(2, 4) });
-        setFen(game.fen());
-      } catch {
-        /* noop */
-      }
-    }, 1600);
-    return () => clearInterval(id);
-  }, []);
-
   const refresh = () => {
     const p = loadPlayer();
     setPlayer(p);
@@ -72,19 +56,36 @@ export function LandingHero() {
     setPendingPuzzle(next ?? null);
   };
 
+  const hasGames = player && player.games > 0;
+
   return (
     <>
-      <section className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center gap-12 px-4 py-12 text-center md:py-24">
-        <div className="flex flex-col items-center gap-7 animate-fade-up">
-          <h1 className="font-hand text-[64px] font-semibold leading-[0.92] tracking-tight text-ink md:text-[128px]">
+      <section className="relative mx-auto grid w-full max-w-6xl flex-1 items-center gap-10 px-6 pb-16 pt-6 md:grid-cols-2 md:gap-16 md:pb-24 md:pt-12">
+        {/* LEFT PAGE — concept + CTA */}
+        <div className="relative flex flex-col items-start gap-8 md:pr-4 animate-fade-up">
+          <h1 className="font-hand text-[58px] font-semibold leading-[0.92] tracking-tight text-ink md:text-[88px]">
             chess that
             <br />
-            <span className="text-red-ink">remembers</span>
+            <span className="relative inline-block text-red-ink">
+              remembers
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-x-[-6px] inset-y-[-2px] -rotate-1 rounded-[40%] border-[2px] border-red-ink/70"
+              />
+            </span>
             <br />
             your mistakes.
           </h1>
 
-          {player && player.games > 0 ? (
+          <p className="max-w-md font-typewriter text-[12px] uppercase leading-relaxed tracking-[0.16em] text-ink-soft md:text-[13px]">
+            an opponent built from your blunders.
+            <br />
+            every weakness you reveal — mimic learns,
+            <br />
+            and plays it back at you.
+          </p>
+
+          {hasGames ? (
             <Link
               href="/play"
               className="group inline-flex items-center gap-2 border-2 border-ink bg-ink px-9 py-4 font-typewriter text-[15px] uppercase tracking-[0.12em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
@@ -98,12 +99,12 @@ export function LandingHero() {
               onClick={startAsAlex}
               className="group inline-flex items-center gap-2 border-2 border-ink bg-ink px-9 py-4 font-typewriter text-[15px] uppercase tracking-[0.12em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
             >
-              play
+              begin
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
             </button>
           )}
 
-          {player && player.games > 0 && (
+          {hasGames && (
             <button
               type="button"
               onClick={resetSelf}
@@ -112,29 +113,62 @@ export function LandingHero() {
               start fresh
             </button>
           )}
-        </div>
 
-        <div className="relative w-full max-w-[440px] animate-fade-up">
-          <div className="relative aspect-square w-full border-2 border-ink shadow-[6px_6px_0_var(--paper-dark)]">
-            <ChessBoard
-              fen={fen}
-              onAttemptMove={() => false}
-              allowMoves={false}
-            />
+          {/* Margin scrawl — bottom-left of the concept page */}
+          <div className="hidden md:block absolute -left-2 bottom-2 max-w-[180px] rotate-[-5deg] font-hand text-[15px] leading-tight text-ink-light">
+            <span className="block">↑ this is the whole pitch.</span>
+            <span className="block opacity-70">no menus. no sign-up.</span>
           </div>
         </div>
 
+        {/* RIGHT PAGE — showcase blunder */}
+        <div className="relative flex flex-col gap-3 md:pl-4 animate-fade-up">
+          {/* Page-edge crease — visible only on md+ */}
+          <div
+            aria-hidden
+            className="hidden md:block absolute left-0 top-0 bottom-0 w-[1px] bg-ink/15"
+          />
+
+          <div className="flex items-baseline justify-between font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-light">
+            <span>position #14 · italian game</span>
+            <span>black to move</span>
+          </div>
+
+          <div className="relative aspect-square w-full max-w-[440px] border-2 border-ink shadow-[6px_6px_0_var(--paper-dark)]">
+            <ChessBoard
+              fen={SHOWCASE_FEN}
+              onAttemptMove={() => false}
+              allowMoves={false}
+              arrows={SHOWCASE_ARROWS}
+            />
+          </div>
+
+          {/* Handwritten margin note pointing at the board */}
+          <div className="relative mt-3 max-w-[440px]">
+            <p className="font-hand text-[22px] leading-snug text-ink md:text-[26px]">
+              the knight reached into nothing.
+              <br />
+              <span className="text-red-ink">d4</span>{" "}
+              <span className="text-ink-soft">was the line.</span>
+            </p>
+            <p className="mt-2 font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-light">
+              category · missed-tactic · −1.8
+            </p>
+          </div>
+        </div>
+
+        {/* If the user has a yesterday puzzle, surface it under the spread */}
         {pendingPuzzle && (
           <button
             type="button"
             onClick={() => setPuzzleOpen(true)}
-            className="group flex w-full max-w-md items-center gap-3 border-2 border-ink bg-paper-card p-4 text-left transition-all hover:-translate-y-0.5 hover:bg-paper-deep"
+            className="group col-span-full mt-4 flex w-full items-center gap-3 border-2 border-ink bg-paper-card p-4 text-left transition-all hover:-translate-y-0.5 hover:bg-paper-deep"
           >
             <div className="flex size-10 items-center justify-center border-2 border-red-ink bg-red-mute font-typewriter text-red-ink">
               !
             </div>
             <div className="flex-1">
-              <div className="font-typewriter text-[11px] uppercase tracking-wider text-ink-light">
+              <div className="font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-light">
                 yesterday's blunder
               </div>
               <div className="mt-0.5 font-hand text-[20px] text-ink">

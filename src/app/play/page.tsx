@@ -27,6 +27,18 @@ import {
   type Blunder,
 } from "@/lib/chess/player-store";
 import { DEMO_MATE_BLUNDER } from "@/lib/chess/demo-blunder";
+import { isAlexActive } from "@/lib/chess/demo-persona";
+
+const CATEGORY_PHRASE: Record<string, string> = {
+  "hanging-piece": "hanging pieces",
+  "missed-tactic": "missed tactics",
+  "missed-mate": "missed mates",
+  "lost-material": "lost material",
+  "weak-king": "exposed king",
+  positional: "quiet slips",
+};
+
+const ALEX_BRIEF_KEY = "mimic.alex.brief.shown.v1";
 
 type GameResult = "win" | "loss" | "draw";
 
@@ -57,15 +69,32 @@ function PlayPageInner() {
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [resultBanner, setResultBanner] = useState<GameResult | null>(null);
   const [demoOpen, setDemoOpen] = useState(false);
+  const [alexBriefOpen, setAlexBriefOpen] = useState(false);
   const playerColorRef = useRef<"w" | "b">("w");
 
   useEffect(() => {
-    setPlayer(loadPlayer());
+    const p = loadPlayer();
+    setPlayer(p);
     if (isDemo) {
       const t = setTimeout(() => setDemoOpen(true), 350);
       return () => clearTimeout(t);
     }
+    // First-run brief for Alex demo persona — concept reveal moment
+    if (
+      isAlexActive() &&
+      typeof window !== "undefined" &&
+      !localStorage.getItem(ALEX_BRIEF_KEY)
+    ) {
+      setAlexBriefOpen(true);
+    }
   }, [isDemo]);
+
+  const closeAlexBrief = useCallback(() => {
+    setAlexBriefOpen(false);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(ALEX_BRIEF_KEY, "1");
+    }
+  }, []);
 
   const finished = game.status !== "playing";
   const playerColor = playerColorRef.current;
@@ -258,6 +287,10 @@ function PlayPageInner() {
         )}
       </main>
 
+      {alexBriefOpen && player && (
+        <AlexBrief player={player} onClose={closeAlexBrief} />
+      )}
+
       {finished && worstBlunder && (
         <PostGameCard
           result={resultBanner ?? "draw"}
@@ -292,7 +325,7 @@ function PlayPageInner() {
         </div>
       )}
 
-      {demoOpen && (
+      {demoOpen && !alexBriefOpen && (
         <PostGameCard
           result="loss"
           accuracy={84}
@@ -313,3 +346,64 @@ function PlayPageInner() {
   );
 }
 
+function AlexBrief({
+  player,
+  onClose,
+}: {
+  player: PlayerState;
+  onClose: () => void;
+}) {
+  // Build a sorted list of categories with counts > 0 — Mimic's actual
+  // private dossier on this player. Reveals what the AI already knows.
+  const entries = Object.entries(player.weaknesses)
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1]) as [keyof typeof CATEGORY_PHRASE, number][];
+  const top = entries[0];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 animate-backdrop-in">
+      <div className="relative w-full max-w-lg border-2 border-ink bg-paper-card p-7 shadow-[10px_10px_0_var(--paper-dark)] animate-modal-rise md:p-9">
+        <div className="font-typewriter text-[10px] uppercase tracking-[0.22em] text-red-ink">
+          mimic · dossier
+        </div>
+        <h2 className="mt-2 font-hand text-[44px] leading-[0.95] text-ink md:text-[56px]">
+          hello, alex.
+        </h2>
+        <p className="mt-3 font-typewriter text-[12px] uppercase leading-relaxed tracking-[0.14em] text-ink-soft">
+          i've watched {player.games} of your games.
+          <br />
+          here's what i'm going to use against you:
+        </p>
+
+        <ul className="mt-5 space-y-2">
+          {entries.map(([cat, n]) => (
+            <li
+              key={cat}
+              className="flex items-baseline justify-between border-b-2 border-dashed border-ink/15 pb-2 font-typewriter text-[13px] uppercase tracking-[0.08em] text-ink"
+            >
+              <span>{CATEGORY_PHRASE[cat] ?? cat}</span>
+              <span className="font-hand text-[22px] leading-none text-red-ink">
+                {n}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        {top && (
+          <p className="mt-5 font-hand text-[20px] leading-snug text-ink">
+            today i'm hunting your{" "}
+            <span className="text-red-ink">{CATEGORY_PHRASE[top[0]]}</span>.
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-7 inline-flex w-full items-center justify-center gap-2 border-2 border-ink bg-ink px-6 py-3 font-typewriter text-[12px] uppercase tracking-[0.15em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
+        >
+          your move →
+        </button>
+      </div>
+    </div>
+  );
+}

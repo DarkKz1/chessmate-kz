@@ -41,6 +41,26 @@ Today: an opponent built from your blunders. One screen, no account.
 
 **Year 5.** White-label "Mimic-style" coaches for non-game skill domains — coding interviews, sales-call analysis, music practice. Same bones: capture decisions → fingerprint weaknesses → drill them with synthetic challenge. The chess product is the wedge; the platform is the prize.
 
+## First 100 users — concrete plan
+
+Distribution will not happen by accident. Three plays in the first 7 days post-launch:
+
+1. **r/chess "I built X"** post — focused on the *one* thing nobody else does ("AI that targets your weakest categories") with a 30-second clip of `play as alex` showing Mimic picking a tactic-trap move. /r/chess at 1.4M members, weekend post window.
+2. **TikTok #chesstok seed** — three 30-sec clips: (a) the dossier-reveal "hello alex" screen, (b) Mimic playing a different move than Stockfish in the same position, (c) yesterday's blunder returns as morning puzzle. Aim: one of three crosses 10K views; that's enough.
+3. **30 chess Discord DMs** — server admins of beginner-intermediate clubs (1000–1500 rating ranges). Personal note + invite to share with members. At 10% acceptance, 3 servers × ~50 active = 150 trial users.
+
+Conversion gate to paid is *intentionally* delayed. We don't ship pricing in v0 — Mimic earns the right to charge by hitting D7 retention ≥ 20%. Until then the cost of running it is $0 (static deploy, browser-only compute).
+
+## Pricing thesis
+
+When D7 ≥ 20% triggers, **Mimic Coach** ships at $9/mo or $79/yr:
+- Unlimited weakness-map history (free is capped at 30 days)
+- Cross-device sync (free is `localStorage` only)
+- Import games from chess.com / lichess for analysis
+- "Bring your blunder" — load any FEN, ask "why is this a blunder?"
+
+$9 is anchored against chess.com Diamond ($14/mo) and the typical chess-coach hourly rate ($30+) — Mimic is a fraction of either, with always-on availability. Target unit economics: 5% free → paid conversion at $9/mo, $108 ARPU, recoups CAC of < $30 from organic channels above within four months.
+
 ## How it differs
 
 |  | chess.com | lichess | **Mimic** |

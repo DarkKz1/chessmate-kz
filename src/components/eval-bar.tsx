@@ -51,15 +51,15 @@ export function EvalBar({
   return (
     <div
       className={cn(
-        "relative flex flex-col items-center justify-between rounded-md border border-border bg-card text-[10px] font-mono text-muted-foreground overflow-hidden",
+        "relative flex flex-col items-center justify-between border-2 border-ink bg-paper-card text-[9px] font-mono text-ink-light overflow-hidden",
         className,
       )}
       style={{ width: 28, minHeight: 200 }}
-      aria-label={`Оценка позиции: ${label}`}
-      title={`Eval: ${label}`}
+      aria-label={`evaluation: ${label}`}
+      title={`eval: ${label}`}
     >
       <div
-        className="absolute inset-x-0 top-0 bg-foreground transition-all duration-500 ease-out"
+        className="absolute inset-x-0 top-0 bg-ink transition-all duration-500 ease-out"
         style={{ height: `${fillFromTopPct}%` }}
       />
       <div className="relative z-10 mt-1 select-none">

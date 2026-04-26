@@ -1,23 +1,33 @@
 import type { Metadata } from "next";
-import { Fraunces, Manrope, JetBrains_Mono } from "next/font/google";
+import { Inter, Caveat, Special_Elite, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  display: "swap",
-});
-
-const manrope = Manrope({
-  variable: "--font-manrope",
+// Body — neutral, highly legible base
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin", "latin-ext", "cyrillic"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
+// Handwritten — logo, margin notes, "ну..." comments. Soviet notebook feel.
+const caveat = Caveat({
+  variable: "--font-caveat",
+  subsets: ["latin", "latin-ext", "cyrillic"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+// Typewriter — UI labels, buttons, headers. Aged paper / chess-bulletin feel.
+const specialElite = Special_Elite({
+  variable: "--font-typewriter",
+  subsets: ["latin"],
+  weight: ["400"],
+  display: "swap",
+});
+
+// Monospace — chess notation only (Nf3, e4, O-O)
 const jetbrains = JetBrains_Mono({
   variable: "--font-jetbrains",
   subsets: ["latin"],
@@ -26,16 +36,16 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChessMate — You vs You",
+  title: "Mimic — chess that remembers your mistakes",
   description:
-    "Шахматы, которые учат тебя из твоих ошибок. Каждая партия — один точный урок.",
+    "Mimic is a chess AI that maps your weaknesses and plays them back at you. The more you play, the sharper it cuts.",
   metadataBase: new URL("https://dr-chessmate-kz.vercel.app"),
   openGraph: {
-    title: "ChessMate — You vs You",
+    title: "Mimic — chess that remembers your mistakes",
     description:
-      "Шахматы, которые учат тебя из твоих ошибок. Каждая партия — один точный урок.",
+      "An AI opponent built from your own blunders. Plays your weaknesses back at you.",
     type: "website",
-    locale: "ru_KZ",
+    locale: "en_US",
   },
 };
 
@@ -46,14 +56,14 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="ru"
+      lang="en"
       suppressHydrationWarning
-      className={`${fraunces.variable} ${manrope.variable} ${jetbrains.variable} h-full antialiased`}
+      className={`${inter.variable} ${caveat.variable} ${specialElite.variable} ${jetbrains.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >

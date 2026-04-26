@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Chess, type Square } from "chess.js";
-import { Sparkles, X } from "lucide-react";
+import { X } from "lucide-react";
 import { ChessBoard } from "./chess-board";
 import { useChessGame } from "@/lib/chess/use-chess-game";
 import { playSolved } from "@/lib/audio";
@@ -12,18 +12,18 @@ import {
 } from "@/lib/chess/player-store";
 
 const RESULT_LABEL: Record<"win" | "loss" | "draw", string> = {
-  win: "Победа",
-  loss: "Поражение",
-  draw: "Ничья",
+  win: "you won",
+  loss: "you lost",
+  draw: "draw",
 };
 
 const CATEGORY_LABEL: Record<Blunder["category"], string> = {
-  "missed-mate": "Пропущенный мат",
-  "lost-material": "Потеря материала",
-  "missed-tactic": "Пропущенная тактика",
-  "hanging-piece": "Подставленная фигура",
-  "weak-king": "Слабый король",
-  positional: "Неточность",
+  "missed-mate": "missed mate",
+  "lost-material": "material lost",
+  "missed-tactic": "missed tactic",
+  "hanging-piece": "hung a piece",
+  "weak-king": "king exposed",
+  positional: "positional slip",
 };
 
 export function PostGameCard({
@@ -33,7 +33,7 @@ export function PostGameCard({
   onReplay,
   onClose,
   initialStage = "reveal",
-  replayLabel = "Сыграть ещё",
+  replayLabel = "play again",
   isDemo = false,
 }: {
   result: "win" | "loss" | "draw";
@@ -48,8 +48,6 @@ export function PostGameCard({
   const [stage, setStage] = useState<"reveal" | "puzzle" | "solved">(initialStage);
   const puzzleGame = useChessGame(blunder.fen);
 
-  // Compute the from→to squares for the best move (for the arrow overlay
-  // shown during reveal stage). Done once per blunder.
   const bestArrow = useMemo(() => {
     try {
       const c = new Chess(blunder.fen);
@@ -80,63 +78,62 @@ export function PostGameCard({
                 {
                   from: playedArrow.from,
                   to: playedArrow.to,
-                  color: "rgba(193, 72, 72, 0.55)",
+                  color: "rgba(184, 52, 30, 0.6)",
                 },
               ]
             : []),
-          { from: bestArrow.from, to: bestArrow.to, color: "#d4a017" },
+          { from: bestArrow.from, to: bestArrow.to, color: "#1c2a4a" },
         ]
       : stage === "solved" && bestArrow
-        ? [{ from: bestArrow.from, to: bestArrow.to, color: "#4d7c4d" }]
+        ? [{ from: bestArrow.from, to: bestArrow.to, color: "#3d6b3d" }]
         : undefined;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-4 backdrop-blur-md animate-backdrop-in md:items-center">
-      <div className="animate-modal-rise relative flex w-full max-w-3xl flex-col gap-6 rounded-3xl border border-border bg-card p-6 shadow-2xl md:p-8">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-4 animate-backdrop-in md:items-center">
+      <div className="animate-modal-rise relative flex w-full max-w-3xl flex-col gap-6 border-2 border-ink bg-paper-card p-6 shadow-[10px_10px_0_var(--paper-dark)] md:p-8">
         <button
           type="button"
           onClick={onClose}
-          aria-label="Закрыть"
-          className="absolute right-4 top-4 flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label="close"
+          className="absolute right-4 top-4 flex size-9 items-center justify-center border-2 border-ink/20 text-ink-light transition-colors hover:border-ink hover:bg-paper-deep hover:text-ink"
         >
           <X className="size-4" />
         </button>
 
         <div>
-          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+          <div className="flex items-center gap-3 font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-light">
             {isDemo ? (
-              <span className="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 font-mono text-[10px] font-bold text-accent">
-                Пример
-              </span>
+              <span className="stamp">example</span>
             ) : (
               <>
                 <span>{RESULT_LABEL[result]}</span>
                 {accuracy !== null && (
-                  <span className="font-mono">
-                    · точность {Math.round(accuracy)}%
-                  </span>
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>accuracy {Math.round(accuracy)}%</span>
+                  </>
                 )}
               </>
             )}
           </div>
-          <h2 className="mt-1 font-display text-3xl font-bold leading-tight md:text-4xl">
+          <h2 className="mt-2 font-hand text-[44px] leading-none text-ink md:text-[60px]">
             {stage === "puzzle"
-              ? "Найди лучший ход"
+              ? "find the move"
               : stage === "solved"
-                ? "Запомнил"
-                : "Этот ход решил всё"}
+                ? "remembered."
+                : "this move broke you."}
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground md:text-base">
+          <p className="mt-3 font-typewriter text-[12px] uppercase tracking-[0.12em] text-ink-soft md:text-[13px]">
             {stage === "puzzle"
-              ? "Та же позиция. Сделай ход, который ты пропустил."
+              ? "same position. play the move you missed."
               : stage === "solved"
-                ? "Эта позиция вернётся завтра как утренняя задача."
+                ? "this position is saved — it returns tomorrow."
                 : blunder.shortLesson}
           </p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-[260px_1fr]">
-          <div className="aspect-square w-full max-w-[260px]">
+          <div className="aspect-square w-full max-w-[260px] border-2 border-ink shadow-[4px_4px_0_var(--paper-dark)]">
             <ChessBoard
               fen={stage === "puzzle" ? puzzleGame.fen : blunder.fen}
               allowMoves={stage === "puzzle"}
@@ -158,31 +155,34 @@ export function PostGameCard({
           </div>
 
           <div className="flex flex-col gap-3">
-            <div className="rounded-2xl border border-border bg-background p-4">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                Категория
+            <div className="border-2 border-ink/40 bg-paper p-4">
+              <div className="font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-light">
+                category
               </div>
-              <div className="mt-1 font-display text-lg font-bold">
+              <div className="mt-1 font-hand text-[28px] leading-none text-ink">
                 {CATEGORY_LABEL[blunder.category]}
               </div>
             </div>
 
             {stage !== "puzzle" && (
               <div className="grid grid-cols-2 gap-3">
-                <Stat label="Ты сыграл" value={blunder.played} />
-                <Stat label="Лучше было" value={blunder.best} accent />
+                <Stat label="you played" value={blunder.played} />
+                <Stat label="best move" value={blunder.best} accent />
               </div>
             )}
 
-            <div className="rounded-2xl border border-border bg-background p-4 text-sm leading-relaxed">
+            <div className="border-2 border-ink/40 bg-paper p-4 font-typewriter text-[12px] leading-relaxed">
               {stage === "puzzle" ? (
-                <span className="text-muted-foreground">
-                  Подсказка: ход называется <span className="font-mono font-semibold text-foreground">{blunder.best.replace(/[+#]$/, "?…")}</span>
+                <span className="text-ink-soft">
+                  hint: starts with{" "}
+                  <span className="font-mono font-semibold text-ink">
+                    {blunder.best.replace(/[+#]$/, "?…")}
+                  </span>
                 </span>
               ) : (
-                <span className="text-muted-foreground">
-                  Эта позиция сохранилась — завтра решишь её ещё раз свежим
-                  взглядом.
+                <span className="text-ink-soft">
+                  this position is saved. tomorrow morning it returns —
+                  fresh eyes, second chance.
                 </span>
               )}
             </div>
@@ -194,9 +194,9 @@ export function PostGameCard({
             <button
               type="button"
               onClick={() => setStage("puzzle")}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-background px-5 py-2.5 text-sm font-bold transition-colors hover:bg-muted"
+              className="inline-flex items-center justify-center gap-2 border-2 border-ink bg-paper-card px-5 py-2.5 font-typewriter text-[12px] uppercase tracking-[0.15em] text-ink transition-colors hover:bg-paper-deep"
             >
-              Реши сам
+              solve it yourself
             </button>
           )}
           {stage === "puzzle" && (
@@ -206,17 +206,16 @@ export function PostGameCard({
                 puzzleGame.reset(blunder.fen);
                 setStage("reveal");
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-background px-5 py-2.5 text-sm font-bold transition-colors hover:bg-muted"
+              className="inline-flex items-center justify-center gap-2 border-2 border-ink bg-paper-card px-5 py-2.5 font-typewriter text-[12px] uppercase tracking-[0.15em] text-ink transition-colors hover:bg-paper-deep"
             >
-              Показать ответ
+              show answer
             </button>
           )}
           <button
             type="button"
             onClick={onReplay}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-sm font-bold text-background transition-transform hover:-translate-y-0.5"
+            className="inline-flex items-center justify-center gap-2 border-2 border-ink bg-ink px-6 py-2.5 font-typewriter text-[12px] uppercase tracking-[0.15em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
           >
-            <Sparkles className="size-4" />
             {replayLabel}
           </button>
         </div>
@@ -236,16 +235,16 @@ function Stat({
 }) {
   return (
     <div
-      className={`rounded-2xl border p-4 ${
-        accent ? "border-accent/40 bg-accent/10" : "border-border bg-background"
+      className={`border-2 p-4 ${
+        accent ? "border-red-ink bg-red-mute" : "border-ink/40 bg-paper"
       }`}
     >
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">
+      <div className="font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-light">
         {label}
       </div>
       <div
         className={`mt-1 font-mono text-xl font-bold ${
-          accent ? "text-accent-foreground" : ""
+          accent ? "text-red-ink" : "text-ink"
         }`}
       >
         {value}

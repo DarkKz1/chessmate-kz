@@ -60,17 +60,17 @@ export function ChessBoard({
 
     if (lastMove) {
       styles[lastMove.from] = {
-        backgroundColor: "rgba(212, 160, 23, 0.32)",
+        backgroundColor: "rgba(28, 42, 74, 0.16)",
       };
       styles[lastMove.to] = {
-        backgroundColor: "rgba(212, 160, 23, 0.42)",
+        backgroundColor: "rgba(28, 42, 74, 0.26)",
       };
     }
 
     if (selected) {
       styles[selected] = {
-        backgroundColor: "rgba(212, 160, 23, 0.5)",
-        boxShadow: "inset 0 0 0 3px var(--color-accent)",
+        backgroundColor: "rgba(28, 42, 74, 0.22)",
+        boxShadow: "inset 0 0 0 3px var(--color-ink)",
       };
       const moves = legalMovesFor?.(selected) ?? [];
       for (const m of moves) {
@@ -78,11 +78,11 @@ export function ChessBoard({
         styles[target] = m.captured
           ? {
               backgroundImage:
-                "radial-gradient(circle, transparent 56%, rgba(193, 72, 72, 0.55) 57%)",
+                "radial-gradient(circle, transparent 54%, var(--color-red-ink) 55%, var(--color-red-ink) 60%, transparent 61%)",
             }
           : {
               backgroundImage:
-                "radial-gradient(circle, rgba(77, 124, 77, 0.55) 22%, transparent 23%)",
+                "radial-gradient(circle, rgba(28, 42, 74, 0.55) 18%, transparent 19%)",
             };
       }
     }
@@ -105,7 +105,7 @@ export function ChessBoard({
               const sq = `${"abcdefgh"[file]}${8 - r}`;
               styles[sq] = {
                 ...(styles[sq] ?? {}),
-                boxShadow: "inset 0 0 0 4px var(--color-check)",
+                boxShadow: "inset 0 0 0 4px var(--color-red-ink)",
               };
             }
             file += 1;
@@ -131,29 +131,27 @@ export function ChessBoard({
           allowDrawingArrows: true,
           arrows: externalArrows,
           arrowOptions: {
-            color: "var(--color-accent)",
-            secondaryColor: "rgba(193, 72, 72, 0.6)",
-            tertiaryColor: "rgba(77, 124, 77, 0.6)",
+            color: "var(--color-ink)",
+            secondaryColor: "rgba(184, 52, 30, 0.7)",
+            tertiaryColor: "rgba(61, 107, 61, 0.7)",
             arrowLengthReducerDenominator: 14,
             sameTargetArrowLengthReducerDenominator: 4,
             arrowWidthDenominator: 4,
             activeArrowWidthMultiplier: 1.2,
-            opacity: 0.9,
+            opacity: 0.92,
             activeOpacity: 0.55,
             arrowStartOffset: 0.18,
           },
           lightSquareStyle: { backgroundColor: lightSquare },
           darkSquareStyle: { backgroundColor: darkSquare },
           dropSquareStyle: {
-            backgroundColor: "rgba(212, 160, 23, 0.45)",
-            boxShadow: "inset 0 0 0 3px var(--color-accent)",
+            backgroundColor: "rgba(28, 42, 74, 0.18)",
+            boxShadow: "inset 0 0 0 3px var(--color-ink)",
           },
           squareStyles,
           boardStyle: {
-            borderRadius: "14px",
+            borderRadius: "0px",
             overflow: "hidden",
-            boxShadow:
-              "0 30px 60px -20px rgba(0,0,0,0.45), 0 18px 30px -15px rgba(0,0,0,0.3)",
           },
           onSquareClick: ({ square, piece }) => {
             if (!allowMoves) return;

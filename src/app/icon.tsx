@@ -10,8 +10,8 @@ export default function Icon() {
         style={{
           width: 32,
           height: 32,
-          background: "#0a0a0a",
-          color: "#fbfaf7",
+          background: "#1c2a4a",
+          color: "#f0e6cc",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -19,11 +19,10 @@ export default function Icon() {
           fontFamily: "serif",
           fontWeight: 700,
           fontStyle: "italic",
-          letterSpacing: "-0.05em",
-          borderRadius: 6,
+          letterSpacing: "-0.04em",
         }}
       >
-        ♚
+        m
       </div>
     ),
     { ...size },

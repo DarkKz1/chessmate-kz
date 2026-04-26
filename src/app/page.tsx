@@ -4,13 +4,16 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="flex items-center justify-between px-6 py-5 md:px-10">
+    <div className="relative flex min-h-dvh flex-col">
+      <header className="flex items-center justify-between px-6 py-6 md:px-12">
         <Link
           href="/"
-          className="flex items-center gap-2 font-display text-base font-semibold tracking-tight"
+          className="flex items-baseline gap-2 font-hand text-[34px] font-bold tracking-tight text-ink"
         >
-          ChessMate
+          mimic
+          <span className="font-typewriter text-[10px] tracking-[0.2em] text-red-ink">
+            ★
+          </span>
         </Link>
         <ThemeToggle />
       </header>
@@ -19,8 +22,8 @@ export default function Home() {
         <LandingHero />
       </main>
 
-      <footer className="border-t border-border/40 px-6 py-5 text-center text-xs text-muted-foreground md:px-10">
-        Каждая партия делает тебя сильнее в одном конкретном месте.
+      <footer className="border-t-2 border-ink/20 px-6 py-6 text-center font-typewriter text-[11px] uppercase tracking-[0.18em] text-ink-light md:px-12">
+        every game leaves a mark. mimic remembers it.
       </footer>
     </div>
   );

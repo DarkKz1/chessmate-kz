@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Chess } from "chess.js";
-import { ArrowRight, Sparkles, Flame } from "lucide-react";
+import { ArrowRight, Flame } from "lucide-react";
 import { ChessBoard } from "./chess-board";
 import { PostGameCard } from "./post-game-card";
 import {
@@ -11,6 +11,7 @@ import {
   type PlayerState,
   type Blunder,
 } from "@/lib/chess/player-store";
+import { seedAlex, isAlexActive, clearPersona } from "@/lib/chess/demo-persona";
 
 const SHOWCASE = [
   "e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "g8f6",
@@ -22,13 +23,26 @@ export function LandingHero() {
   const [pendingPuzzle, setPendingPuzzle] = useState<Blunder | null>(null);
   const [puzzleOpen, setPuzzleOpen] = useState(false);
   const [player, setPlayer] = useState<PlayerState | null>(null);
+  const [asAlex, setAsAlex] = useState(false);
 
   useEffect(() => {
     const p = loadPlayer();
     setPlayer(p);
+    setAsAlex(isAlexActive());
     const next = p.blunders.find((b) => !b.resolved);
     if (next) setPendingPuzzle(next);
   }, []);
+
+  const startAsAlex = () => {
+    seedAlex();
+    window.location.href = "/play";
+  };
+
+  const resetSelf = () => {
+    if (!confirm("clear your data and start fresh?")) return;
+    clearPersona();
+    window.location.reload();
+  };
 
   useEffect(() => {
     const game = new Chess();
@@ -60,64 +74,82 @@ export function LandingHero() {
 
   return (
     <>
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center gap-10 px-4 py-12 text-center md:py-20">
-        <div className="flex flex-col items-center gap-5 animate-fade-up">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            <Sparkles className="size-3 text-accent" />
-            You vs You
-          </div>
-          <h1 className="font-display text-5xl font-semibold leading-[0.95] tracking-tight md:text-7xl">
-            Шахматы,{" "}
-            <span className="italic text-muted-foreground">учат</span>
+      <section className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center gap-12 px-4 py-12 text-center md:py-20">
+        <div className="flex flex-col items-center gap-6 animate-fade-up">
+          <span className="stamp">Beta · vol. 01</span>
+
+          <h1 className="font-hand text-[64px] font-semibold leading-[0.92] tracking-tight text-ink md:text-[120px]">
+            chess that
             <br />
-            тебя из ошибок
+            <span className="text-red-ink">remembers</span>
+            <br />
+            your mistakes.
           </h1>
-          <p className="max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg">
-            ИИ подстраивается под твой уровень. После партии — один точный
-            ход, который решил всё. Завтра он вернётся как задача.
+
+          <p className="max-w-xl font-typewriter text-[15px] leading-relaxed text-ink-soft md:text-base">
+            an opponent built from <em>your</em> blunders.
+            <br />
+            every weak move you make comes back tomorrow —
+            <br />
+            and the AI starts hunting where you fall apart.
           </p>
-          <div className="mt-2 flex flex-col items-center gap-2 sm:flex-row sm:gap-3">
+
+          <div className="mt-3 flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
             <Link
               href="/play"
-              className="group inline-flex items-center gap-2 rounded-full bg-foreground px-7 py-3.5 text-base font-semibold text-background shadow-xl shadow-foreground/15 transition-transform hover:-translate-y-0.5"
+              className="group inline-flex items-center gap-2 border-2 border-ink bg-ink px-7 py-3 font-typewriter text-[14px] uppercase tracking-[0.12em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
             >
-              {player && player.games > 0 ? "Продолжить" : "Играть"}
+              {player && player.games > 0 ? "continue" : "start playing"}
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
             </Link>
-            <Link
-              href="/play?demo=1"
-              className="group inline-flex items-center gap-2 rounded-full border border-border bg-card px-7 py-3.5 text-base font-semibold text-foreground transition-all hover:-translate-y-0.5 hover:border-foreground/40"
+            <button
+              type="button"
+              onClick={startAsAlex}
+              className="group inline-flex items-center gap-2 border-2 border-ink bg-paper-card px-7 py-3 font-typewriter text-[14px] uppercase tracking-[0.12em] text-ink transition-all hover:-translate-y-0.5 hover:bg-paper-deep"
             >
-              <Sparkles className="size-4 text-accent" />
-              Как это работает
-            </Link>
+              play as alex →
+            </button>
           </div>
+          <p className="mt-1 max-w-md font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-light">
+            new here? play as <span className="text-red-ink">alex</span> — a 1100-rated player with a profile already built. mimic targets his weak spots from move one.
+          </p>
+
           {player && player.games > 0 && (
-            <div className="flex items-center gap-3 font-mono text-xs text-muted-foreground">
-              <span>{player.games} партий</span>
+            <div className="flex items-center gap-3 font-mono text-xs text-ink-light">
+              {asAlex && <span className="stamp text-[9px]">demo</span>}
+              <span>{player.games} games</span>
               <span aria-hidden>·</span>
-              <span>уровень {Math.round(player.rating)}</span>
+              <span>level {Math.round(player.rating)}</span>
               {player.streak > 0 && (
                 <>
                   <span aria-hidden>·</span>
-                  <span className="inline-flex items-center gap-1 text-accent">
+                  <span className="inline-flex items-center gap-1 text-red-ink">
                     <Flame className="size-3" />
                     {player.streak}
                   </span>
                 </>
               )}
+              <button
+                type="button"
+                onClick={resetSelf}
+                className="ml-2 underline decoration-dashed underline-offset-4 hover:text-ink"
+              >
+                reset
+              </button>
             </div>
           )}
         </div>
 
         <div className="relative w-full max-w-[440px] animate-fade-up">
-          <div className="absolute -inset-4 rounded-[36px] bg-foreground/5 blur-2xl" />
-          <div className="relative aspect-square w-full">
+          <div className="relative aspect-square w-full border-2 border-ink shadow-[6px_6px_0_var(--paper-dark)]">
             <ChessBoard
               fen={fen}
               onAttemptMove={() => false}
               allowMoves={false}
             />
+          </div>
+          <div className="mt-3 text-center font-hand text-[18px] text-ink-light">
+            opening — italian game, 6 moves in
           </div>
         </div>
 
@@ -125,20 +157,20 @@ export function LandingHero() {
           <button
             type="button"
             onClick={() => setPuzzleOpen(true)}
-            className="group flex w-full max-w-md items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-foreground/40"
+            className="group flex w-full max-w-md items-center gap-3 border-2 border-ink bg-paper-card p-4 text-left transition-all hover:-translate-y-0.5 hover:bg-paper-deep"
           >
-            <div className="flex size-10 items-center justify-center rounded-xl bg-accent/15 text-accent">
-              <Sparkles className="size-5" />
+            <div className="flex size-10 items-center justify-center border-2 border-red-ink bg-red-mute font-typewriter text-red-ink">
+              !
             </div>
             <div className="flex-1">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                Утренняя задача
+              <div className="font-typewriter text-[11px] uppercase tracking-wider text-ink-light">
+                yesterday's blunder
               </div>
-              <div className="mt-0.5 text-sm font-semibold">
+              <div className="mt-0.5 font-hand text-[20px] text-ink">
                 {pendingPuzzle.shortLesson}
               </div>
             </div>
-            <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
+            <ArrowRight className="size-4 text-ink-light transition-transform group-hover:translate-x-1" />
           </button>
         )}
       </section>
@@ -149,7 +181,7 @@ export function LandingHero() {
           accuracy={null}
           blunder={pendingPuzzle}
           initialStage="puzzle"
-          replayLabel="Сыграть партию"
+          replayLabel="play a game"
           onReplay={() => {
             setPuzzleOpen(false);
             window.location.href = "/play";

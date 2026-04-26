@@ -1,194 +1,171 @@
-# ChessMate — You vs You
+# Mimic — chess that remembers your mistakes
 
 **Live:** https://dr-chessmate-kz.vercel.app
-**Сабмит:** nFactorial Incubator 2026, 2-й этап (Chess)
+**Submission:** nFactorial Incubator 2026, round 2
 
 ---
 
-## Что это
+## What it is
 
-Шахматы, которые **учат тебя из твоих ошибок**. Не просто доска с ИИ — продукт-loop:
+A chess opponent built from your blunders.
 
-1. Открыл — играешь против ИИ, который **подстраивается под твой уровень**.
-2. Партия закончилась — приложение находит **один конкретный ход**, который решил исход, и показывает его. Не «accuracy 87%», не «3 blunders». Один ход. С объяснением.
-3. На следующий день — этот ход возвращается как **утренняя задача** на главной. Решил — продолжаешь играть.
+You play. Mimic watches. After each game it picks the *one* move that broke you, files it as a category — "you hung a piece", "you missed mate in two", "you walked into a fork" — and stores it in a private weakness map.
 
-Каждая партия делает тебя сильнее в одном конкретном месте. Это и есть весь продукт.
+Then the next game changes. The AI no longer just searches for the best move. From the top-N near-optimal moves, it picks the one that pushes the position into your worst category. If you hang pieces, Mimic offers you bait. If you miss tactics, it manufactures sharp positions. If you collapse against king attacks, it brings every piece to your monarch.
 
-## Для кого
+Tomorrow morning, that broken move is back as a puzzle on the home page. Solve it. Streak +1. Play again.
 
-Для любого, кто играет в шахматы и **не понимает почему он проигрывает**. Stockfish скажет «−2.3», chess.com покажет accuracy. ChessMate берёт тебя за руку: вот ход, вот объяснение, вот завтра ты решишь его сам.
+The longer you play, the sharper Mimic cuts.
 
-## Чем отличается от chess.com / lichess
+## For whom
 
-| | chess.com | lichess | ChessMate |
+Adults rated 800–1600 who play chess 1–3 times a week and don't know *why* they lose. They've tried chess.com — accuracy 81%, three blunders, fine. They've tried lichess — Stockfish says −2.3, fine. Neither of those tells them anything about *themselves as players*. Mimic does.
+
+## How it differs
+
+|  | chess.com | lichess | **Mimic** |
 |---|---|---|---|
-| Сложность | 30 уровней | 8 уровней | **адаптивная** — растёт под твою игру |
-| Анализ партии | accuracy + список blunder'ов | Stockfish eval | **один ход + урок** |
-| Завтра | надо вспомнить | надо вспомнить | **возвращает позицию из вчерашней ошибки** |
-| Регистрация | нужна | нужна | **не нужна** |
-| Меню | бесконечное | бесконечное | **одна кнопка** |
+| Difficulty | 30 levels | 8 levels | adapts to *your* weaknesses |
+| Post-game | accuracy + blunder list | Stockfish eval | one move + one category + tomorrow's puzzle |
+| Opponent | random | random / Stockfish | trained on **your** failures |
+| Account | required | required | not required |
+| Menus | infinite | infinite | one screen |
 
-## Как это работает (под капотом)
+## What's AI-native about it
 
-### 1. Адаптивный ИИ
+The product fails one of [Murat Abdrakhmanov's tests](https://www.linkedin.com/in/murat-abdrakhmanov/) for "real AI startups": *if you remove the AI, does the product still work?* Without the weakness map and the biased move selector, this is just another chess clone. The AI isn't an LLM wrapper bolted on top — it's the move-selection function itself.
 
-`Rating` (0–100) хранится в `localStorage`. Маппится на глубину поиска минимакса:
+Three things make it AI-native (Phase 3):
 
-| Rating | Depth | Сложность |
-|---|---|---|
-| 0–14 | 1 | новичок |
-| 15–34 | 2 | базовый |
-| 35–59 | 3 | средний |
-| 60–81 | 4 | сильный |
-| 82+ | 5 | эксперт |
+1. **Move selection biased by personal data.** Standard minimax finds the top-N near-optimal moves; a custom heuristic picks the one that most challenges the player's worst category.
+2. **Personal weakness fingerprint.** Each player's `weaknesses` map is unique, grows with every game, and is impossible to copy without their data — Murat's "proprietary data" moat.
+3. **Detection without LLMs.** Every blunder is classified by deterministic rules (mate-in-N pattern, hanging-piece detection, cpLoss thresholds) — no API calls, no LLM brittleness, no $5000/month token bill.
 
-После каждой партии rating сдвигается:
-- результат партии: ±1.2
-- средняя точность ходов: ±2
+## Under the hood
 
-5–10 партий = переход на следующий уровень.
-
-### 2. Минимакс с alpha-beta
-
-Своя реализация на TypeScript (~150 LOC), работает в Web Worker — UI не виснет:
-
-- Сортировка ходов перед поиском (взятия первыми) → дерево сокращается в 5–10×
-- Piece-Square Tables: пешки в центре +20, кони на краю −50, рокированный король +20
-- Стандартные значения: пешка 100, конь 320, слон 330, ладья 500, ферзь 900
-
-Депт 4 = 200K–1M позиций за 0.5–2 секунды на современном CPU.
-
-### 3. Анализатор партии
-
-После окончания партии шлём PGN в worker. Для каждого хода игрока:
-1. Считаем лучший ход на глубине 3
-2. Сравниваем с тем, что игрок сыграл
-3. `cpLoss = (eval лучшего) − (eval сыгранного)` в centipawns
-
-Если `cpLoss > 100` — это blunder. Сортируем все blunder'ы по `cpLoss`, **первый = главный ход партии**.
-
-### 4. Категоризация без LLM
-
-Murat Abdrakhmanov: «LLM wrappers don't work anymore». Поэтому классификация — детерминированные правила:
-
-- best оканчивается на `#`, played нет → `missed-mate`
-- `cpLoss > 400` → `lost-material`
-- `cpLoss > 200` + лучший ход берёт фигуру → `missed-tactic`
-- `cpLoss > 200` без взятия → `hanging-piece`
-- иначе → `positional`
-
-Каждой категории — короткий шаблон-урок: «Можно было поставить мат: Qf7#», «Ты подставил коня. Сильнее Bxe5».
-
-### 5. Карта слабостей (proprietary loop)
-
-Каждый blunder инкрементит счётчик в своей категории:
-
-```ts
-weaknesses: {
-  "hanging-piece": 4,
-  "missed-tactic": 7,    // ← здесь твоя слабость
-  "missed-mate": 1,
-  ...
-}
-```
-
-Это и есть **proprietary data** — она строится только в нашем приложении и со временем становится более ценной для тебя. Конкурент не реплицирует.
-
-В следующей итерации ИИ будет читать эту карту и **намеренно создавать позиции**, провоцирующие твою худшую категорию. Это превращает игру против ИИ в персональный тренинг.
-
-### 6. Ежедневный loop
+### Move selection (`lib/chess/mimic-engine.ts`)
 
 ```
-Партия закончилась → blunder сохранён в localStorage с resolved: false
-Завтра открыл / → первый unresolved blunder показывается как «Утренняя задача»
-Кликнул → модалка с позицией, делаешь ход
-Если правильно → markBlunderResolved() → streak +1
+1. minimax with alpha-beta to depth D
+2. take top-K candidates within W centipawns of best
+3. for each candidate: compute weakness-bias score
+4. pick max(eval + bias_factor × bias_score)
 ```
 
-## Стек
+Calibrated so Mimic stays objectively strong (no intentional weak play), but within the band of optimal moves it consistently picks the one that probes the player's softest spot.
+
+### Weakness heuristics (`lib/chess/weakness-heuristics.ts`)
+
+Per-category scoring functions, each ~10 LOC:
+
+| Category | What scores high |
+|---|---|
+| `hanging-piece` | bait moves — own piece looks attacked but is defended |
+| `missed-tactic` | high tactical pressure (attackers > defenders on multiple targets) |
+| `missed-mate` | pieces close to opponent king + check threats |
+| `lost-material` | forcing exchanges, moves that create loose pieces |
+| `weak-king` | pieces converging on the king's neighborhood |
+| `positional` | inverse — quiet moves, low complexity |
+
+### Blunder detection (`lib/chess/blunder-detector.ts`)
+
+After the game, the worker walks the PGN move-by-move:
+
+1. For each player move, compute best move at depth 3
+2. `cpLoss = eval(best) − eval(played)`
+3. `cpLoss > 100` → blunder
+4. Sort by `cpLoss`, take the worst → that's the move that "broke" the player
+5. Categorize it: `played != mate && best ends in #` → `missed-mate`; `cpLoss > 400` → `lost-material`; etc.
+
+### Demo persona — "Alex"
+
+First-time visitors can play as Alex, a pre-built 1100-rated profile with five archived blunders and a heavy `hanging-piece` + `missed-tactic` weakness skew. This solves the cold-start problem: a jury member opens the URL and immediately gets the full Mimic experience without playing 8 games to build a profile.
+
+### Storage
+
+Everything in `localStorage` under `mimic.player.v1`. No backend, no Supabase, no Stripe, no signup. Pure offline-capable static site. **Cost: $0/month per user.**
+
+## Stack
 
 - **Next.js 16** (App Router, Turbopack)
 - **TypeScript** (strict)
-- **Tailwind CSS 4** (CSS-vars палитра, dark mode по `class`)
-- **chess.js 1.4** — правила, FEN/PGN
-- **react-chessboard 5.10** — доска
-- **next-themes** — переключатель тем
-- **Web Worker** — минимакс не блокирует UI
-- **Vercel** — статический деплой, 0 backend
+- **Tailwind CSS 4** with a custom Soviet-chess-notebook design system (paper texture, ruled lines, ink + handwriting fonts)
+- **chess.js 1.4** — rules, FEN/PGN
+- **react-chessboard 5.10** — board UI
+- **Web Worker** — minimax + analysis don't block UI
+- **Vercel** — static deploy
 
-Бекенда нет. Всё в браузере. **0 инфры — 0 расходов — работает offline.**
+## Design
 
-## Дизайн-философия
+Hand-drawn Soviet chess notebook — cream paper, blue ballpoint ink, red margin stamp, ruled lines, Caveat handwriting + Special Elite typewriter. Picked because:
 
-Применил два фреймворка:
+1. **It's not "Claude default"**. 80% of jury submissions will be Tailwind / shadcn / Geist Sans. A typewriter-on-aged-paper look stands out at a glance.
+2. **It matches the product**. A chess journal where you log your mistakes — visual metaphor and product metaphor align.
+3. **It's globally readable**. The Soviet reference is in the *texture*, not the language; an English-speaker reads it as "old chess journal", which works.
 
-### Apple / Стив Джобс — 7 заповедей
-1. **Simplicity** — открыл и играешь. Никакого онбординга, выбора режима, цвета фигур.
-2. **Say no to 1000 things** — отрезано всё, что не в core loop'е. (Была версия с школами Казахстана / этно-фигурами / Pro подпиской / мультиплеером — выкинул всё за один вечер. См. git log.)
-3. **Detail** — Piece-Square Tables, классификация blunder'ов, шаблонные уроки на родном языке.
-4. **Innovation > research** — chess.com показывает accuracy. Я показываю **один ход** и **завтра он вернётся**. Этого нет нигде.
-5. **UX-first** — стартовал с экрана пользователя, не с фичи.
+Dark mode = the same notebook at midnight (dim aged paper, golden ink). Light is canonical.
 
-### Murat Abdrakhmanov (MA7 Ventures) — 4 источника moat'а
-1. **Proprietary data** — карта слабостей пользователя растёт с каждой партией.
-2. **Distribution** — TBD после nFactorial.
-3. **Domain expertise** — лично играю в шахматы, знаю что бесит.
-4. **Execution velocity** — от концепта до live за 2 дня.
+## Why this and not "AI shadow that plays your style"
 
-И **3 фазы стартапов** (тоже Murat):
-- Phase 1 (copy-paste) — это chess.com клон. Мёртвый путь.
-- Phase 2 (нишевая дифференциация) — был соблазн прикрутить «школьную лигу Казахстана». Выкинул как AI slop.
-- **Phase 3 (AI-native)** — ИИ не «прикручен», он ядро. Без анализатора + адаптивной сложности продукта нет.
+An earlier scope had Mimic literally imitate the player's move choices using behavioral fingerprinting + style-weighted minimax. We cut it after a pre-build review:
 
-## Запуск локально
+- Style imitation with 5 features = "playing personality preset 3 of 8". Trained eyes spot it in two moves. Demo dies.
+- Took 12 of 30 hours. Couldn't ship cleanly.
+
+The current design — *pick the move that targets the player's worst category* — is concrete, demonstrable in a 10-second clip, and uses the data we already have. We made the smaller, defensible claim instead of the bigger, hand-wavy one.
+
+(Apple commandment #2: say no to 1000 things.)
+
+## Roadmap
+
+**v0.2** — Versions of You: snapshot weakness profile every 5 games; play against your past self ("you, two weeks ago").
+
+**v0.3** — Daily mirror challenge: one position a day, drawn from real users' blunders; share-link the position with your solve time.
+
+**v0.4** — Replay → 9:16 MP4 export of the breaking move with annotated arrows. TikTok-native loop.
+
+**v1.0** — Sync via Supabase (only when D7 retention > 20% — until then the cloud is overhead).
+
+## Run locally
 
 ```bash
 npm install
 npm run dev      # http://localhost:3000
+npm run build && npm run start
 ```
 
-```bash
-npm run build && npm run start    # production
-```
-
-## Файловая структура
+## File map
 
 ```
 src/
   app/
-    page.tsx           ← лендинг
-    play/page.tsx      ← главная страница игры
-    layout.tsx         ← root layout, шрифты, тема
-    globals.css        ← палитра + утилиты
+    page.tsx           ← landing
+    play/page.tsx      ← game screen
+    layout.tsx
+    globals.css        ← notebook design system
   components/
-    chess-board.tsx    ← обёртка react-chessboard с подсветкой
-    landing-hero.tsx   ← герой + showcase board
-    post-game-card.tsx ← модалка анализа партии
+    chess-board.tsx    ← react-chessboard wrapper
+    landing-hero.tsx   ← hero + "play as alex"
+    post-game-card.tsx ← blunder reveal modal
+    eval-bar.tsx
     theme-provider.tsx
     theme-toggle.tsx
   lib/
-    utils.ts           ← cn() helper
     chess/
-      use-chess-game.ts    ← хук-обёртка над chess.js
-      use-engine.ts        ← общается с worker
-      engine.worker.ts     ← Web Worker
-      simple-engine.ts     ← минимакс с alpha-beta
-      evaluation.ts        ← evaluate() + PST
-      blunder-detector.ts  ← analyseGame() + классификация
-      player-store.ts      ← localStorage state + rating math
+      use-chess-game.ts        ← chess.js hook
+      use-engine.ts            ← worker channel
+      engine.worker.ts         ← worker entry
+      simple-engine.ts         ← minimax + alpha-beta
+      mimic-engine.ts          ← biased selection
+      weakness-heuristics.ts   ← per-category scoring
+      evaluation.ts            ← position eval + PSTs
+      blunder-detector.ts      ← post-game classifier
+      player-store.ts          ← localStorage
+      demo-persona.ts          ← Alex
 ```
 
-## Roadmap (после nFactorial)
+## Author
 
-- ИИ читает карту слабостей и провоцирует твои худшие категории
-- Звуки ходов и хаптика на мобиле (Apple #4 detail)
-- Sharing: «я решил blunder #12, попробуй»
-- Supabase для cross-device — но **только когда D7 retention > 20%**
-- Импорт партии из chess.com / lichess для разбора
+Diyar Raimzhan, 17, Astana Hub. Solo founder of [ENTprep](https://entprep.kz) (10K+ users). Built Mimic for nFactorial Incubator 2026, round 2.
 
-## Об авторе
-
-Дияр Райымжан, 17 лет, Astana Hub. Solo founder [ENTprep](https://entprep.kz) (10K+ юзеров). Это вечерний проект для nFactorial Incubator 2026.
-
-Связь: raimzhan1907@gmail.com
+Contact: raimzhan1907@gmail.com

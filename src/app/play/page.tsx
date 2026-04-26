@@ -9,7 +9,6 @@ import {
   Loader2,
   RotateCcw,
   Flag,
-  Sparkles,
 } from "lucide-react";
 import { ChessBoard } from "@/components/chess-board";
 import { EvalBar } from "@/components/eval-bar";
@@ -33,7 +32,13 @@ type GameResult = "win" | "loss" | "draw";
 
 export default function PlayPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-dvh items-center justify-center text-muted-foreground">Загружаю…</div>}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center font-typewriter text-ink-light">
+          loading…
+        </div>
+      }
+    >
       <PlayPageInner />
     </Suspense>
   );
@@ -54,11 +59,9 @@ function PlayPageInner() {
   const [demoOpen, setDemoOpen] = useState(false);
   const playerColorRef = useRef<"w" | "b">("w");
 
-  // Hydrate player state on mount
   useEffect(() => {
     setPlayer(loadPlayer());
     if (isDemo) {
-      // Slight delay so the modal animates in nicely
       const t = setTimeout(() => setDemoOpen(true), 350);
       return () => clearTimeout(t);
     }
@@ -79,7 +82,6 @@ function PlayPageInner() {
         }
       : null;
 
-  // AI move loop
   useEffect(() => {
     if (!player) return;
     if (game.status !== "playing") return;
@@ -88,7 +90,7 @@ function PlayPageInner() {
     let cancelled = false;
     setThinking(true);
     const timer = setTimeout(async () => {
-      const aiMove = await bestMove(game.fen, depth);
+      const aiMove = await bestMove(game.fen, depth, player.weaknesses);
       if (cancelled || !aiMove) {
         setThinking(false);
         return;
@@ -106,7 +108,6 @@ function PlayPageInner() {
     };
   }, [game, game.fen, game.turn, game.status, bestMove, depth, player, playerColor]);
 
-  // End-of-game analysis + rating update
   useEffect(() => {
     if (!finished || !player) return;
     if (worstBlunder !== null || analysing) return;
@@ -129,7 +130,6 @@ function PlayPageInner() {
         return;
       }
 
-      // Compute new rating: result delta + average move-quality delta
       const moveDelta =
         analysis.moveCount > 0
           ? ratingDeltaForMove(analysis.totalCpLoss / analysis.moveCount) *
@@ -170,7 +170,6 @@ function PlayPageInner() {
   }, [finished, player, game.pgn, game.winner, analyse, worstBlunder, analysing, playerColor]);
 
   const handleNewGame = useCallback(() => {
-    // Alternate side each game so player learns both colors
     playerColorRef.current = playerColorRef.current === "w" ? "b" : "w";
     game.reset();
     setWorstBlunder(null);
@@ -179,65 +178,68 @@ function PlayPageInner() {
   }, [game]);
 
   const handleResign = useCallback(() => {
-    if (!confirm("Сдаться? Партия завершится поражением.")) return;
-    // Simulate loss by playing king move that immediately ends... we just
-    // mark it as a loss without updating rating or blunder analysis since the
-    // player abandoned the position.
+    if (!confirm("resign? this game ends as a loss.")) return;
     game.reset();
   }, [game]);
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="flex items-center justify-between border-b border-border/40 px-4 py-3 md:px-8 md:py-4">
+      <header className="flex items-center justify-between border-b-2 border-ink/30 px-4 py-4 md:px-10">
         <Link
           href="/"
-          className="flex items-center gap-2 text-sm font-bold text-muted-foreground transition-colors hover:text-foreground"
+          className="group flex items-center gap-2 font-typewriter text-[12px] uppercase tracking-[0.15em] text-ink-soft transition-colors hover:text-ink"
         >
-          <ArrowLeft className="size-4" />
-          ChessMate
+          <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
+          back · mimic
         </Link>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="font-mono">
-            {player ? `Ур. ${ratingToDepth(player.rating)}` : "—"}
+        <div className="flex items-center gap-3 font-typewriter text-[11px] uppercase tracking-[0.12em] text-ink-light">
+          <span>
+            depth {player ? ratingToDepth(player.rating) : "—"}
           </span>
           <span aria-hidden>·</span>
-          <span className="font-mono">
-            {player ? `${player.wins}/${player.draws}/${player.losses}` : "0/0/0"}
+          <span>
+            {player ? `${player.wins}–${player.draws}–${player.losses}` : "0–0–0"}
           </span>
           <ThemeToggle />
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-6xl flex-1 gap-6 px-4 py-6 md:grid-cols-[1fr_320px] md:px-8 md:py-10">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
+      <main className="mx-auto grid w-full max-w-6xl flex-1 gap-8 px-4 py-8 md:grid-cols-[1fr_320px] md:px-10 md:py-10">
+        <div className="flex flex-col gap-5">
+          <div className="flex items-end justify-between">
             <div>
-              <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
-                {finished ? "Партия окончена" : thinking ? "ИИ думает…" : game.turn === playerColor ? "Твой ход" : "Ход ИИ"}
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <h1 className="font-hand text-[40px] leading-[0.9] text-ink md:text-[56px]">
                 {finished
-                  ? "Сейчас покажу один ход, который решил партию"
-                  : "Сложность подстраивается под тебя в реальном времени"}
+                  ? "game over"
+                  : thinking
+                    ? "mimic is thinking…"
+                    : game.turn === playerColor
+                      ? "your move"
+                      : "mimic's move"}
+              </h1>
+              <p className="mt-2 font-typewriter text-[11px] uppercase tracking-[0.15em] text-ink-light">
+                {finished
+                  ? "the move that decided this game →"
+                  : "difficulty adapts to your play"}
               </p>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleResign}
                 disabled={finished}
-                title="Сдаться"
-                aria-label="Сдаться"
-                className="flex size-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+                title="resign"
+                aria-label="resign"
+                className="flex size-10 items-center justify-center border-2 border-ink bg-paper-card text-ink transition-colors hover:bg-paper-deep disabled:opacity-30"
               >
                 <Flag className="size-4" />
               </button>
               <button
                 type="button"
                 onClick={handleNewGame}
-                title="Новая партия"
-                aria-label="Новая партия"
-                className="flex size-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="new game"
+                aria-label="new game"
+                className="flex size-10 items-center justify-center border-2 border-ink bg-paper-card text-ink transition-colors hover:bg-paper-deep"
               >
                 <RotateCcw className="size-4" />
               </button>
@@ -250,7 +252,7 @@ function PlayPageInner() {
               orientation={playerColor === "w" ? "white" : "black"}
               className="self-stretch"
             />
-            <div className="aspect-square flex-1">
+            <div className="aspect-square flex-1 border-2 border-ink shadow-[6px_6px_0_var(--paper-dark)]">
               <ChessBoard
                 fen={game.fen}
                 orientation={playerColor === "w" ? "white" : "black"}
@@ -266,42 +268,44 @@ function PlayPageInner() {
           </div>
 
           {resultBanner && analysing && (
-            <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground animate-fade-up">
+            <div className="flex items-center justify-center gap-2 border-2 border-ink/40 bg-paper-card px-4 py-3 font-typewriter text-[11px] uppercase tracking-[0.15em] text-ink-soft animate-fade-up">
               <Loader2 className="size-4 animate-spin" />
-              ИИ ищет ход, который решил партию…
+              mimic is finding the move that broke you…
             </div>
           )}
         </div>
 
         <aside className="flex flex-col gap-4">
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-center justify-between border-b border-border/60 pb-2 text-xs uppercase tracking-wider text-muted-foreground">
-              <span className="font-bold">Партия</span>
-              <span className="font-mono">{game.history.length} ходов</span>
+          <div className="border-2 border-ink bg-paper-card p-4 shadow-[4px_4px_0_var(--paper-dark)]">
+            <div className="flex items-center justify-between border-b-2 border-ink/30 pb-2 font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-soft">
+              <span>moves</span>
+              <span>{game.history.length}</span>
             </div>
             <MoveList history={game.history} />
           </div>
 
           {player && player.games > 0 && (
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                Твой прогресс
+            <div className="border-2 border-ink bg-paper-card p-4 shadow-[4px_4px_0_var(--paper-dark)]">
+              <div className="font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-soft">
+                your level
               </div>
               <div className="mt-2 flex items-baseline gap-2">
-                <div className="font-display text-3xl font-bold">
+                <div className="font-hand text-[44px] leading-none text-ink">
                   {Math.round(player.rating)}
                 </div>
-                <div className="text-xs text-muted-foreground">из 100</div>
+                <div className="font-typewriter text-[10px] uppercase tracking-[0.15em] text-ink-light">
+                  / 100
+                </div>
               </div>
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="mt-3 h-1.5 overflow-hidden border border-ink/40 bg-paper-deep">
                 <div
-                  className="h-full bg-foreground transition-all"
+                  className="h-full bg-ink transition-all"
                   style={{ width: `${player.rating}%` }}
                 />
               </div>
-              <div className="mt-3 flex items-center justify-between font-mono text-xs text-muted-foreground">
-                <span>{player.games} партий</span>
-                <span>уровень ИИ {ratingToDepth(player.rating)}</span>
+              <div className="mt-3 flex items-center justify-between font-typewriter text-[10px] uppercase tracking-[0.15em] text-ink-light">
+                <span>{player.games} games</span>
+                <span>depth {ratingToDepth(player.rating)}</span>
               </div>
             </div>
           )}
@@ -319,21 +323,24 @@ function PlayPageInner() {
       )}
 
       {finished && !worstBlunder && !analysing && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-4 backdrop-blur-sm md:items-center">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-center">
-            <div className="font-display text-2xl font-bold">
-              {resultBanner === "win" ? "Победа" : resultBanner === "loss" ? "Поражение" : "Ничья"}
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 p-4 animate-backdrop-in md:items-center">
+          <div className="w-full max-w-md border-2 border-ink bg-paper-card p-6 text-center shadow-[8px_8px_0_var(--paper-dark)] animate-modal-rise">
+            <div className="font-hand text-[44px] leading-none text-ink">
+              {resultBanner === "win"
+                ? "you won"
+                : resultBanner === "loss"
+                  ? "you lost"
+                  : "draw"}
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              На этот раз без явных промахов. Сыграй ещё.
+            <p className="mt-3 font-typewriter text-[11px] uppercase tracking-[0.15em] text-ink-light">
+              clean game — no real blunders this time
             </p>
             <button
               type="button"
               onClick={handleNewGame}
-              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-bold text-background transition-transform hover:-translate-y-0.5"
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 border-2 border-ink bg-ink px-6 py-3 font-typewriter text-[12px] uppercase tracking-[0.15em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
             >
-              <Sparkles className="size-4" />
-              Новая партия
+              new game
             </button>
           </div>
         </div>
@@ -345,7 +352,7 @@ function PlayPageInner() {
           accuracy={84}
           blunder={DEMO_MATE_BLUNDER}
           isDemo
-          replayLabel="Сыграть свою партию"
+          replayLabel="play your own game"
           onClose={() => {
             setDemoOpen(false);
             window.history.replaceState(null, "", "/play");
@@ -363,8 +370,8 @@ function PlayPageInner() {
 function MoveList({ history }: { history: { san: string }[] }) {
   if (history.length === 0) {
     return (
-      <div className="px-1 py-6 text-center text-sm text-muted-foreground">
-        Сделай первый ход
+      <div className="px-1 py-6 text-center font-hand text-[18px] text-ink-light">
+        make the first move
       </div>
     );
   }
@@ -381,9 +388,9 @@ function MoveList({ history }: { history: { san: string }[] }) {
       {rows.map((row) => (
         <li
           key={row.num}
-          className="grid grid-cols-[2rem_1fr_1fr] items-center gap-2 rounded-md px-1 py-1 font-mono text-xs"
+          className="grid grid-cols-[2rem_1fr_1fr] items-center gap-2 px-1 py-1 font-mono text-[12px] text-ink"
         >
-          <span className="text-muted-foreground">{row.num}.</span>
+          <span className="text-ink-light">{row.num}.</span>
           <span className="font-semibold">{row.w ?? ""}</span>
           <span className="font-semibold">{row.b ?? ""}</span>
         </li>

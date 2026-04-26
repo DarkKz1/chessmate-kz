@@ -1,6 +1,6 @@
 "use client";
 
-const STORAGE_KEY = "chessmate.player.v1";
+const STORAGE_KEY = "mimic.player.v1";
 
 export type Blunder = {
   fen: string; // position before the blunder

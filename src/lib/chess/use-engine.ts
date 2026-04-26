@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import type { GameAnalysis } from "./blunder-detector";
+import type { BlunderCategory } from "./player-store";
+
+type WeaknessMap = Record<BlunderCategory, number>;
 
 type EngineMove = {
   from: string;
@@ -43,7 +46,11 @@ export function useEngine() {
   }, []);
 
   const bestMove = useCallback(
-    (fen: string, depth: number): Promise<EngineMove | null> => {
+    (
+      fen: string,
+      depth: number,
+      weaknesses?: WeaknessMap,
+    ): Promise<EngineMove | null> => {
       return new Promise((resolve) => {
         const worker = workerRef.current;
         if (!worker) {
@@ -54,7 +61,7 @@ export function useEngine() {
         pendingRef.current.set(id, (r) =>
           resolve(r.type === "search" ? r.best : null),
         );
-        worker.postMessage({ id, type: "search", fen, depth });
+        worker.postMessage({ id, type: "search", fen, depth, weaknesses });
       });
     },
     [],

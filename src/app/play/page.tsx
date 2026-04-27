@@ -28,6 +28,7 @@ import {
 } from "@/lib/chess/player-store";
 import { DEMO_MATE_BLUNDER } from "@/lib/chess/demo-blunder";
 import { isAlexActive } from "@/lib/chess/demo-persona";
+import { analyseGameWithStockfish } from "@/lib/chess/stockfish-analyse";
 
 const CATEGORY_PHRASE: Record<string, string> = {
   "hanging-piece": "hanging pieces",
@@ -161,7 +162,13 @@ function PlayPageInner() {
     setResultBanner(result);
 
     (async () => {
-      const analysis = await analyse(game.pgn, playerColor, 3);
+      // Try Stockfish 18 (Lite NNUE) first — accurate blunder detection.
+      // Falls back to our in-house alpha-beta engine if Stockfish fails to
+      // load (no internet, blocked worker, etc).
+      let analysis = await analyseGameWithStockfish(game.pgn, playerColor, 12);
+      if (!analysis) {
+        analysis = await analyse(game.pgn, playerColor, 3);
+      }
       if (cancelled || !analysis) {
         setAnalysing(false);
         return;

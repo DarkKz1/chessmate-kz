@@ -11,7 +11,7 @@ import {
   type PlayerState,
   type Blunder,
 } from "@/lib/chess/player-store";
-import { seedAlex, isAlexActive, clearPersona } from "@/lib/chess/demo-persona";
+import { seedAlex } from "@/lib/chess/demo-persona";
 
 // A real-feeling blunder we showcase on the landing page. Black to move —
 // played Bb5+ (looks active), but Nxe5 was the tactic Mimic would punish you
@@ -41,12 +41,6 @@ export function LandingHero() {
   const startAsAlex = () => {
     seedAlex();
     window.location.href = "/play";
-  };
-
-  const resetSelf = () => {
-    if (!confirm("clear your data and start fresh?")) return;
-    clearPersona();
-    window.location.reload();
   };
 
   const refresh = () => {
@@ -104,21 +98,6 @@ export function LandingHero() {
             </button>
           )}
 
-          {hasGames && (
-            <button
-              type="button"
-              onClick={resetSelf}
-              className="font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-light underline decoration-dashed underline-offset-4 hover:text-ink"
-            >
-              start fresh
-            </button>
-          )}
-
-          {/* Margin scrawl — bottom-left of the concept page */}
-          <div className="hidden md:block absolute -left-2 bottom-2 max-w-[180px] rotate-[-5deg] font-hand text-[15px] leading-tight text-ink-light">
-            <span className="block">↑ this is the whole pitch.</span>
-            <span className="block opacity-70">no menus. no sign-up.</span>
-          </div>
         </div>
 
         {/* RIGHT PAGE — showcase blunder */}

@@ -107,15 +107,28 @@ Per-category scoring functions, each ~10 LOC:
 | `weak-king` | pieces converging on the king's neighborhood |
 | `positional` | inverse — quiet moves, low complexity |
 
-### Blunder detection (`lib/chess/blunder-detector.ts`)
+### Two-engine architecture
 
-After the game, the worker walks the PGN move-by-move:
+Mimic uses **two engines for two jobs**, deliberately:
 
-1. For each player move, compute best move at depth 3
-2. `cpLoss = eval(best) − eval(played)`
+| Job | Engine | Why |
+|---|---|---|
+| **Gameplay opponent** | Our adaptive bias minimax (`simple-engine.ts` + `mimic-engine.ts`, ~150 LOC, depth 1–5) | The AI you play against *is* the product's identity — it must be ours. Phase-3 (Murat): if you remove this engine, the product dies. Stockfish is interchangeable; this isn't. |
+| **Post-game judge** | Stockfish 18 Lite NNUE (WASM, ~7 MB, depth 10 multiPV 5) | A 2400-Elo home engine grades a 3500-Elo player with 200-cp error bars; a 3500-Elo external engine grades the same with 10-cp bars. Accuracy of *blunder detection* matters; identity of *blunder finder* doesn't. |
+
+The Stockfish integration is `analyseGameWithStockfish()` — runs locally in a Web Worker, no backend. If it fails to load (offline, blocked worker), the post-game flow falls back to our in-house analyser at depth 3. **Gameplay never depends on Stockfish.**
+
+### Blunder detection (`lib/chess/stockfish-analyse.ts` + `blunder-detector.ts`)
+
+After the game, the analyser walks the PGN move-by-move:
+
+1. For each player move, ask Stockfish for top-5 candidate moves at depth 10 (one UCI call per position via MultiPV)
+2. `cpLoss = bestCp − playedCp` (sign-adjusted to player's perspective)
 3. `cpLoss > 100` → blunder
 4. Sort by `cpLoss`, take the worst → that's the move that "broke" the player
 5. Categorize it: `played != mate && best ends in #` → `missed-mate`; `cpLoss > 400` → `lost-material`; etc.
+
+Total cost: ~6 seconds per game (30 player moves × ~200 ms). The user already finished the game; the wait is acceptable.
 
 ### Demo persona — "Alex"
 

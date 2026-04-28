@@ -88,14 +88,22 @@ export function LandingHero() {
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
             </Link>
           ) : (
-            <button
-              type="button"
-              onClick={startAsAlex}
-              className="group inline-flex items-center gap-2 border-2 border-ink bg-ink px-9 py-4 font-typewriter text-[15px] uppercase tracking-[0.12em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
-            >
-              begin
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
-            </button>
+            <div className="flex flex-col items-start gap-2">
+              <button
+                type="button"
+                onClick={startAsAlex}
+                className="group inline-flex items-center gap-2 border-2 border-ink bg-ink px-9 py-4 font-typewriter text-[15px] uppercase tracking-[0.12em] text-paper transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--ink-soft)]"
+              >
+                play as alex (demo)
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+              </button>
+              <Link
+                href="/play"
+                className="font-typewriter text-[10px] uppercase tracking-[0.18em] text-ink-light underline decoration-dashed underline-offset-4 hover:text-ink"
+              >
+                or start fresh →
+              </Link>
+            </div>
           )}
 
         </div>

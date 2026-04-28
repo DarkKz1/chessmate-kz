@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import type { GameAnalysis } from "./blunder-detector";
+import { analyseGame, type GameAnalysis } from "./blunder-detector";
+import { search } from "./simple-engine";
+import { searchMimic } from "./mimic-engine";
 import type { BlunderCategory } from "./player-store";
 
 type WeaknessMap = Record<BlunderCategory, number>;
@@ -45,44 +47,102 @@ export function useEngine() {
     };
   }, []);
 
+  // Race a worker postMessage against a timeout. If the worker doesn't
+  // respond within `ms`, run the same computation on the main thread
+  // synchronously and resolve with that result. Production deploys (Netlify
+  // + Next.js 16 Turbopack) have surfaced cases where the worker URL
+  // bundle doesn't dispatch back; the fallback guarantees the user always
+  // sees a result.
+  const raceWithMain = useCallback(
+    <T,>(
+      workerSend: (id: number) => void,
+      readResponse: (r: WorkerResponse) => T,
+      mainCompute: () => T,
+      ms: number,
+    ): Promise<T> => {
+      return new Promise<T>((resolve) => {
+        let done = false;
+        const finish = (val: T) => {
+          if (done) return;
+          done = true;
+          resolve(val);
+        };
+        const timer = setTimeout(() => finish(mainCompute()), ms);
+        const worker = workerRef.current;
+        if (!worker) {
+          clearTimeout(timer);
+          finish(mainCompute());
+          return;
+        }
+        const id = ++idRef.current;
+        pendingRef.current.set(id, (r) => {
+          clearTimeout(timer);
+          finish(readResponse(r));
+        });
+        workerSend(id);
+      });
+    },
+    [],
+  );
+
   const bestMove = useCallback(
     (
       fen: string,
       depth: number,
       weaknesses?: WeaknessMap,
     ): Promise<EngineMove | null> => {
-      return new Promise((resolve) => {
-        const worker = workerRef.current;
-        if (!worker) {
-          resolve(null);
-          return;
-        }
-        const id = ++idRef.current;
-        pendingRef.current.set(id, (r) =>
-          resolve(r.type === "search" ? r.best : null),
-        );
-        worker.postMessage({ id, type: "search", fen, depth, weaknesses });
-      });
+      return raceWithMain<EngineMove | null>(
+        (id) =>
+          workerRef.current!.postMessage({
+            id,
+            type: "search",
+            fen,
+            depth,
+            weaknesses,
+          }),
+        (r) => (r.type === "search" ? r.best : null),
+        () => {
+          const result = weaknesses
+            ? searchMimic(fen, depth, weaknesses)
+            : search(fen, depth);
+          if (!result.move) return null;
+          return {
+            from: result.move.from,
+            to: result.move.to,
+            promotion: result.move.promotion,
+            san: result.move.san,
+            score: result.score,
+          };
+        },
+        // depth-1 worker should respond well under 1.5s; fall back at 2s
+        2_000,
+      );
     },
-    [],
+    [raceWithMain],
   );
 
   const analyse = useCallback(
-    (pgn: string, playerColor: "w" | "b", depth = 3): Promise<GameAnalysis | null> => {
-      return new Promise((resolve) => {
-        const worker = workerRef.current;
-        if (!worker) {
-          resolve(null);
-          return;
-        }
-        const id = ++idRef.current;
-        pendingRef.current.set(id, (r) =>
-          resolve(r.type === "analyse" ? r.analysis : null),
-        );
-        worker.postMessage({ id, type: "analyse", pgn, playerColor, depth });
-      });
+    (
+      pgn: string,
+      playerColor: "w" | "b",
+      depth = 3,
+    ): Promise<GameAnalysis | null> => {
+      return raceWithMain<GameAnalysis | null>(
+        (id) =>
+          workerRef.current!.postMessage({
+            id,
+            type: "analyse",
+            pgn,
+            playerColor,
+            depth,
+          }),
+        (r) => (r.type === "analyse" ? r.analysis : null),
+        () => analyseGame(pgn, playerColor, depth),
+        // analyse with 30 plies @ depth 3 on main thread is ~1-2s; 4s grace
+        4_000,
+      );
     },
-    [],
+    [raceWithMain],
   );
 
   return { bestMove, analyse };

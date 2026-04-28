@@ -103,6 +103,17 @@ export function useChessGame(initialFen?: string) {
     setSnapshot(snapshotOf(chessRef.current));
   }, []);
 
+  // End the game without a mate on the board — used for resign / abandon.
+  // Re-uses 'checkmate' status so the rest of the post-game flow (analysis,
+  // blunder card, weakness map update) fires unchanged.
+  const forceEnd = useCallback((loser: ChessSide) => {
+    setSnapshot((prev) => ({
+      ...prev,
+      status: "checkmate",
+      winner: loser === "w" ? "b" : "w",
+    }));
+  }, []);
+
   const undo = useCallback(() => {
     chessRef.current.undo();
     setSnapshot(snapshotOf(chessRef.current));
@@ -121,10 +132,11 @@ export function useChessGame(initialFen?: string) {
       applyUCIMove,
       reset,
       undo,
+      forceEnd,
       legalMoves,
       chess: chessRef.current,
     }),
-    [snapshot, tryMove, applyUCIMove, reset, undo, legalMoves],
+    [snapshot, tryMove, applyUCIMove, reset, undo, forceEnd, legalMoves],
   );
 
   return api;

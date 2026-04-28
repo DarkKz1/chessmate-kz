@@ -17,6 +17,14 @@ Tomorrow morning, that broken move is back as a puzzle on the home page. Solve i
 
 The longer you play, the sharper Mimic cuts.
 
+## See it in 30 seconds — "play as Alex"
+
+First-time visitors hit one button: **`play as alex`**. Alex is a pre-built 1100-rated profile with five archived blunders and a heavy `hanging-piece` + `missed-tactic` skew.
+
+Open Alex's dossier. Read his last five games — every blunder annotated, categorised, dated. Play one. Watch Mimic offer Alex the exact bait his weakness map predicts.
+
+Solves the cold-start problem: a jury member opens the URL and gets the full Mimic experience without playing 8 games to build a profile.
+
 ## For whom
 
 Adults rated 800–1600 who play chess 1–3 times a week and don't know *why* they lose. They've tried chess.com — accuracy 81%, three blunders, fine. They've tried lichess — Stockfish says −2.3, fine. Neither of those tells them anything about *themselves as players*. Mimic does.
@@ -31,11 +39,79 @@ Three windows are open at once:
 
 Build the personal-coach product into that gap before chess.com decides it's worth doing.
 
+## What's AI-native about it
+
+The product passes [Murat Abdrakhmanov's test](https://www.linkedin.com/in/murat-abdrakhmanov/) for "real AI startups": *if you remove the AI, does the product still work?* Without the weakness map and the biased move selector, this is just another chess clone. The AI isn't an LLM wrapper bolted on top — **it's the move-selection function itself.**
+
+Three things make it AI-native:
+
+1. **Move selection biased by personal data.** Standard minimax finds the top-N near-optimal moves; a custom heuristic picks the one that most challenges the player's worst category.
+2. **Personal weakness fingerprint.** Each player's `weaknesses` map is unique, grows with every game, and is impossible to copy without their data — Murat's "proprietary data" moat.
+3. **Detection without LLMs.** Every blunder is classified by deterministic rules (mate-in-N pattern, hanging-piece detection, cpLoss thresholds) — no API calls, no LLM brittleness, no $5000/month token bill.
+
+## How it differs
+
+|                | chess.com | lichess | **Mimic** |
+|----------------|-----------|---------|-----------|
+| Difficulty     | 30 levels | 8 levels | adapts to *your* weaknesses |
+| Post-game      | accuracy + blunder list | Stockfish eval | one move + one category + tomorrow's puzzle |
+| Opponent       | random | random / Stockfish | trained on **your** failures |
+| Account        | required | required | not required |
+| Menus          | infinite | infinite | one screen |
+
+## Under the hood
+
+**Two engines for two jobs, by design:**
+
+| Job | Engine | Why |
+|-----|--------|-----|
+| **Gameplay opponent** | Our adaptive bias minimax (`simple-engine.ts` + `mimic-engine.ts`, ~150 LOC, depth 1–5) | The AI you play against *is* the product's identity — it must be ours. Phase-3 (Murat): if you remove this engine, the product dies. Stockfish is interchangeable; this isn't. |
+| **Post-game judge** | Stockfish 18 Lite NNUE (WASM, ~7 MB, depth 10 multiPV 5) | A 2400-Elo home engine grades a 3500-Elo player with 200-cp error bars; a 3500-Elo external engine grades the same with 10-cp bars. |
+
+Stockfish 18 is wired up (`src/lib/chess/stockfish-engine.ts`, `stockfish-analyse.ts`) and verified working in isolation — WASM loads on Netlify, single multiPV calls return in ~200 ms, variations parse cleanly. But the **per-game loop hangs after the first call in production** due to a browser-worker race I couldn't pin down before round 2's deadline.
+
+**v0 ships with our in-house analyser at depth 3 only.** The Stockfish path is intentionally disabled in `play/page.tsx`; the code stays in the repo as the first post-submit task. Gameplay never depended on Stockfish — the bias engine carries the product. Including this here because hiding it would be the wrong kind of polish.
+
+**Move selection (`mimic-engine.ts`):**
+
+```
+1. minimax with alpha-beta to depth D
+2. take top-K candidates within W centipawns of best
+3. for each candidate: compute weakness-bias score
+4. pick max(eval + bias_factor × bias_score)
+```
+
+Calibrated so Mimic stays objectively strong (no intentional weak play), but within the band of optimal moves it consistently picks the one that probes the player's softest spot.
+
+**Weakness heuristics — per-category scoring (~10 LOC each):**
+
+| Category | What scores high |
+|----------|------------------|
+| `hanging-piece` | bait moves — own piece looks attacked but is defended |
+| `missed-tactic` | high tactical pressure (attackers > defenders on multiple targets) |
+| `missed-mate` | pieces close to opponent king + check threats |
+| `lost-material` | forcing exchanges, moves that create loose pieces |
+| `weak-king` | pieces converging on the king's neighborhood |
+| `positional` | inverse — quiet moves, low complexity |
+
+**Blunder detection (`stockfish-analyse.ts` + `blunder-detector.ts`):**
+
+After the game, the analyser walks the PGN move-by-move:
+1. For each player move, ask Stockfish for top-5 candidate moves at depth 10 (one UCI call per position via MultiPV)
+2. `cpLoss = bestCp − playedCp` (sign-adjusted to player's perspective)
+3. `cpLoss > 100` → blunder
+4. Sort by `cpLoss`, take the worst → that's the move that "broke" the player
+5. Categorize it: `played != mate && best ends in #` → `missed-mate`; `cpLoss > 400` → `lost-material`; etc.
+
+Total cost: ~6 seconds per game (30 player moves × ~200 ms). The user already finished the game; the wait is acceptable.
+
+**Storage:** everything in `localStorage` under `mimic.player.v1`. No backend, no Supabase, no Stripe, no signup. Pure offline-capable static site. **Cost: $0/month per user.**
+
 ## Five-year picture
 
 Today: an opponent built from your blunders. One screen, no account.
 
-**Year 1.** Web product reaches 50K MAU on the back of "play your past self" loop. Mobile app. First $15/mo paid tier — deeper analysis, longer history, cross-device sync.
+**Year 1.** Web product reaches 50K MAU on the back of "play your past self" loop. Mobile app. First $9/mo paid tier — deeper analysis, longer history, cross-device sync.
 
 **Year 3.** The same engine architecture for **Go, shogi, poker, StarCraft replays** — anywhere a player has a record of decisions and a "what should I have done?" question. Mimic isn't a chess product; it's a behavioural-mirror engine that ships first in the cleanest data domain (chess) before generalising.
 
@@ -61,100 +137,13 @@ When D7 ≥ 20% triggers, **Mimic Coach** ships at $9/mo or $79/yr:
 
 $9 is anchored against chess.com Diamond ($14/mo) and the typical chess-coach hourly rate ($30+) — Mimic is a fraction of either, with always-on availability. Target unit economics: 5% free → paid conversion at $9/mo, $108 ARPU, recoups CAC of < $30 from organic channels above within four months.
 
-## How it differs
-
-|  | chess.com | lichess | **Mimic** |
-|---|---|---|---|
-| Difficulty | 30 levels | 8 levels | adapts to *your* weaknesses |
-| Post-game | accuracy + blunder list | Stockfish eval | one move + one category + tomorrow's puzzle |
-| Opponent | random | random / Stockfish | trained on **your** failures |
-| Account | required | required | not required |
-| Menus | infinite | infinite | one screen |
-
-## What's AI-native about it
-
-The product fails one of [Murat Abdrakhmanov's tests](https://www.linkedin.com/in/murat-abdrakhmanov/) for "real AI startups": *if you remove the AI, does the product still work?* Without the weakness map and the biased move selector, this is just another chess clone. The AI isn't an LLM wrapper bolted on top — it's the move-selection function itself.
-
-Three things make it AI-native (Phase 3):
-
-1. **Move selection biased by personal data.** Standard minimax finds the top-N near-optimal moves; a custom heuristic picks the one that most challenges the player's worst category.
-2. **Personal weakness fingerprint.** Each player's `weaknesses` map is unique, grows with every game, and is impossible to copy without their data — Murat's "proprietary data" moat.
-3. **Detection without LLMs.** Every blunder is classified by deterministic rules (mate-in-N pattern, hanging-piece detection, cpLoss thresholds) — no API calls, no LLM brittleness, no $5000/month token bill.
-
-## Under the hood
-
-### Move selection (`lib/chess/mimic-engine.ts`)
-
-```
-1. minimax with alpha-beta to depth D
-2. take top-K candidates within W centipawns of best
-3. for each candidate: compute weakness-bias score
-4. pick max(eval + bias_factor × bias_score)
-```
-
-Calibrated so Mimic stays objectively strong (no intentional weak play), but within the band of optimal moves it consistently picks the one that probes the player's softest spot.
-
-### Weakness heuristics (`lib/chess/weakness-heuristics.ts`)
-
-Per-category scoring functions, each ~10 LOC:
-
-| Category | What scores high |
-|---|---|
-| `hanging-piece` | bait moves — own piece looks attacked but is defended |
-| `missed-tactic` | high tactical pressure (attackers > defenders on multiple targets) |
-| `missed-mate` | pieces close to opponent king + check threats |
-| `lost-material` | forcing exchanges, moves that create loose pieces |
-| `weak-king` | pieces converging on the king's neighborhood |
-| `positional` | inverse — quiet moves, low complexity |
-
-### Two-engine architecture
-
-Mimic uses **two engines for two jobs**, deliberately:
-
-| Job | Engine | Why |
-|---|---|---|
-| **Gameplay opponent** | Our adaptive bias minimax (`simple-engine.ts` + `mimic-engine.ts`, ~150 LOC, depth 1–5) | The AI you play against *is* the product's identity — it must be ours. Phase-3 (Murat): if you remove this engine, the product dies. Stockfish is interchangeable; this isn't. |
-| **Post-game judge** | Stockfish 18 Lite NNUE (WASM, ~7 MB, depth 10 multiPV 5) | A 2400-Elo home engine grades a 3500-Elo player with 200-cp error bars; a 3500-Elo external engine grades the same with 10-cp bars. Accuracy of *blunder detection* matters; identity of *blunder finder* doesn't. |
-
-The Stockfish integration is `analyseGameWithStockfish()` — runs locally in a Web Worker, no backend. If it fails to load (offline, blocked worker), the post-game flow falls back to our in-house analyser at depth 3. **Gameplay never depends on Stockfish.**
-
-### Blunder detection (`lib/chess/stockfish-analyse.ts` + `blunder-detector.ts`)
-
-After the game, the analyser walks the PGN move-by-move:
-
-1. For each player move, ask Stockfish for top-5 candidate moves at depth 10 (one UCI call per position via MultiPV)
-2. `cpLoss = bestCp − playedCp` (sign-adjusted to player's perspective)
-3. `cpLoss > 100` → blunder
-4. Sort by `cpLoss`, take the worst → that's the move that "broke" the player
-5. Categorize it: `played != mate && best ends in #` → `missed-mate`; `cpLoss > 400` → `lost-material`; etc.
-
-Total cost: ~6 seconds per game (30 player moves × ~200 ms). The user already finished the game; the wait is acceptable.
-
-### Demo persona — "Alex"
-
-First-time visitors can play as Alex, a pre-built 1100-rated profile with five archived blunders and a heavy `hanging-piece` + `missed-tactic` weakness skew. This solves the cold-start problem: a jury member opens the URL and immediately gets the full Mimic experience without playing 8 games to build a profile.
-
-### Storage
-
-Everything in `localStorage` under `mimic.player.v1`. No backend, no Supabase, no Stripe, no signup. Pure offline-capable static site. **Cost: $0/month per user.**
-
-## Stack
-
-- **Next.js 16** (App Router, Turbopack)
-- **TypeScript** (strict)
-- **Tailwind CSS 4** with a custom Soviet-chess-notebook design system (paper texture, ruled lines, ink + handwriting fonts)
-- **chess.js 1.4** — rules, FEN/PGN
-- **react-chessboard 5.10** — board UI
-- **Web Worker** — minimax + analysis don't block UI
-- **Vercel** — static deploy
-
-## Design
+## Design — Soviet chess notebook
 
 Hand-drawn Soviet chess notebook — cream paper, blue ballpoint ink, red margin stamp, ruled lines, Caveat handwriting + Special Elite typewriter. Picked because:
 
-1. **It's not "Claude default"**. 80% of jury submissions will be Tailwind / shadcn / Geist Sans. A typewriter-on-aged-paper look stands out at a glance.
-2. **It matches the product**. A chess journal where you log your mistakes — visual metaphor and product metaphor align.
-3. **It's globally readable**. The Soviet reference is in the *texture*, not the language; an English-speaker reads it as "old chess journal", which works.
+1. **It's not "Claude default".** 80% of jury submissions will be Tailwind / shadcn / Geist Sans. A typewriter-on-aged-paper look stands out at a glance.
+2. **It matches the product.** A chess journal where you log your mistakes — visual metaphor and product metaphor align.
+3. **It's globally readable.** The Soviet reference is in the *texture*, not the language; an English-speaker reads it as "old chess journal", which works.
 
 Dark mode = the same notebook at midnight (dim aged paper, golden ink). Light is canonical.
 
@@ -171,13 +160,14 @@ The current design — *pick the move that targets the player's worst category* 
 
 ## Roadmap
 
-**v0.2** — Versions of You: snapshot weakness profile every 5 games; play against your past self ("you, two weeks ago").
+- **v0.2** — Versions of You: snapshot weakness profile every 5 games; play against your past self ("you, two weeks ago").
+- **v0.3** — Daily mirror challenge: one position a day, drawn from real users' blunders; share-link the position with your solve time.
+- **v0.4** — Replay → 9:16 MP4 export of the breaking move with annotated arrows. TikTok-native loop.
+- **v1.0** — Sync via Supabase (only when D7 retention > 20% — until then the cloud is overhead).
 
-**v0.3** — Daily mirror challenge: one position a day, drawn from real users' blunders; share-link the position with your solve time.
+## Stack
 
-**v0.4** — Replay → 9:16 MP4 export of the breaking move with annotated arrows. TikTok-native loop.
-
-**v1.0** — Sync via Supabase (only when D7 retention > 20% — until then the cloud is overhead).
+Next.js 16 (App Router, Turbopack) · TypeScript strict · Tailwind 4 with a custom Soviet-notebook design system · chess.js 1.4 · react-chessboard 5.10 · Stockfish 18 Lite NNUE (WASM) · Web Workers · Vercel static deploy.
 
 ## Run locally
 
@@ -187,38 +177,8 @@ npm run dev      # http://localhost:3000
 npm run build && npm run start
 ```
 
-## File map
-
-```
-src/
-  app/
-    page.tsx           ← landing
-    play/page.tsx      ← game screen
-    layout.tsx
-    globals.css        ← notebook design system
-  components/
-    chess-board.tsx    ← react-chessboard wrapper
-    landing-hero.tsx   ← hero + "play as alex"
-    post-game-card.tsx ← blunder reveal modal
-    eval-bar.tsx
-    theme-provider.tsx
-    theme-toggle.tsx
-  lib/
-    chess/
-      use-chess-game.ts        ← chess.js hook
-      use-engine.ts            ← worker channel
-      engine.worker.ts         ← worker entry
-      simple-engine.ts         ← minimax + alpha-beta
-      mimic-engine.ts          ← biased selection
-      weakness-heuristics.ts   ← per-category scoring
-      evaluation.ts            ← position eval + PSTs
-      blunder-detector.ts      ← post-game classifier
-      player-store.ts          ← localStorage
-      demo-persona.ts          ← Alex
-```
-
 ## Author
 
-Diyar Raimzhan, 17, Astana Hub. Solo founder of [ENTprep](https://entprep.kz) (10K+ users). Built Mimic for nFactorial Incubator 2026, round 2.
+Diyar Zhakpelov, 17, Astana Hub. Solo founder of [ENTprep](https://entprep.kz) (10K+ users). Built Mimic for nFactorial Incubator 2026, round 2.
 
-Contact: raimzhan1907@gmail.com
+dzakpelov@gmail.com
